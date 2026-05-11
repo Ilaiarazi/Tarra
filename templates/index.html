@@ -463,7 +463,7 @@
 
             <!-- Visible button. onclick= triggers a click on the hidden input above,
                  which opens the file picker. -->
-            <button class="btn-primary" id="browseBtn"
+            <button type="button" class="btn-primary" id="browseBtn"
                     onclick="document.getElementById('fileInput').click()">
                 Browse Files
             </button>
@@ -479,7 +479,7 @@
                color:#ff6b6b; font-size:0.88rem;"></p>
 
             <!-- The submit button — hidden until a valid file is chosen. -->
-            <button class="btn-primary" id="analyseBtn"
+            <button type="button" class="btn-primary" id="analyseBtn"
                     style="display:none; margin-top:1.1rem;"
                     onclick="uploadFile()">
                 Analyse My Playing
