@@ -453,8 +453,41 @@
         <div class="upload-box" id="uploadBox">
             <div class="upload-icon">🎵</div>
             <h3>Drag &amp; drop your audio file</h3>
-            <p>MP3 · WAV · M4A &nbsp;·&nbsp; Max 50 MB</p>
-            <a href="#" class="btn-primary">Browse Files</a>
+            <p class="upload-hint">MP3 &nbsp;·&nbsp; WAV &nbsp;·&nbsp; Max 10 MB</p>
+
+            <!-- Hidden file input — the browser's native file picker.
+                 accept= tells it to only show MP3 and WAV files in the picker. -->
+            <input type="file" id="fileInput"
+                   accept=".mp3,.wav,audio/mpeg,audio/wav"
+                   style="display:none">
+
+            <!-- Visible button. onclick= triggers a click on the hidden input above,
+                 which opens the file picker. -->
+            <button class="btn-primary" id="browseBtn"
+                    onclick="document.getElementById('fileInput').click()">
+                Browse Files
+            </button>
+
+            <!-- Shows the chosen filename once a valid file is picked.
+                 Hidden by default; JS makes it visible. -->
+            <p id="filenameDisplay" style="display:none; margin-top:1.1rem;
+               color:var(--teal); font-size:0.9rem; font-weight:600;"></p>
+
+            <!-- Red error message for wrong type or oversized file.
+                 Hidden by default; JS makes it visible on bad picks. -->
+            <p id="uploadError" style="display:none; margin-top:0.8rem;
+               color:#ff6b6b; font-size:0.88rem;"></p>
+
+            <!-- The submit button — hidden until a valid file is chosen. -->
+            <button class="btn-primary" id="analyseBtn"
+                    style="display:none; margin-top:1.1rem;"
+                    onclick="uploadFile()">
+                Analyse My Playing
+            </button>
+
+            <!-- Status line shown during upload and after (loading / success / error). -->
+            <p id="uploadStatus" style="display:none; margin-top:0.9rem;
+               color:var(--muted); font-size:0.9rem;"></p>
         </div>
     </section>
 
@@ -559,11 +592,150 @@
             scrollTrigger: { trigger: '.upload-box', start: 'top 87%' }
         });
 
-        // ── 5. DRAG & DROP HIGHLIGHT ──────────────────────────────────
-        const box = document.getElementById('uploadBox');
-        box.addEventListener('dragover',  e => { e.preventDefault(); box.style.borderColor='var(--teal)'; box.style.background='rgba(0,212,170,0.06)'; });
-        box.addEventListener('dragleave', ()=> { box.style.borderColor=''; box.style.background=''; });
-        box.addEventListener('drop',      e => { e.preventDefault(); box.style.borderColor=''; box.style.background=''; });
+        // ── 5. UPLOAD FEATURE ─────────────────────────────────────────
+
+        // Grab references to every element we'll need to show/hide or read.
+        const fileInput       = document.getElementById('fileInput');
+        const filenameDisplay = document.getElementById('filenameDisplay');
+        const uploadError     = document.getElementById('uploadError');
+        const analyseBtn      = document.getElementById('analyseBtn');
+        const uploadStatus    = document.getElementById('uploadStatus');
+        const uploadBox       = document.getElementById('uploadBox');
+
+        // The only extensions we allow and the matching browser MIME types.
+        const ALLOWED_EXTS  = ['.mp3', '.wav'];
+        const ALLOWED_TYPES = ['audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav'];
+        const MAX_MB        = 10;
+        const MAX_BYTES     = MAX_MB * 1024 * 1024; // convert MB → bytes
+
+        // ── Runs every time the user picks (or drag-drops) a file ────────
+        fileInput.addEventListener('change', function () {
+            // Reset all feedback elements back to hidden before re-checking.
+            uploadError.style.display     = 'none';
+            analyseBtn.style.display      = 'none';
+            filenameDisplay.style.display = 'none';
+            uploadStatus.style.display    = 'none';
+            uploadStatus.style.color      = 'var(--muted)';
+
+            // fileInput.files is a list; [0] is the first (and only) chosen file.
+            const file = fileInput.files[0];
+            if (!file) return; // user cancelled the picker — nothing to do
+
+            // Extract the extension: 'MySong.MP3' → split on '.' → last part → lowercase → '.mp3'
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+            // Accept if EITHER the extension OR the MIME type matches.
+            // (MIME type can be missing on some systems, so we check both.)
+            const typeOK = ALLOWED_EXTS.includes(ext) || ALLOWED_TYPES.includes(file.type);
+
+            if (!typeOK) {
+                // Wrong file type — show a friendly red message and clear the input.
+                uploadError.textContent = '⚠️ Please choose an MP3 or WAV file only.';
+                uploadError.style.display = 'block';
+                fileInput.value = ''; // clear so they can pick again
+                return;
+            }
+
+            if (file.size > MAX_BYTES) {
+                // File too large — tell them the exact size and the limit.
+                // toFixed(1) rounds to 1 decimal place, e.g. 12.3 MB
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                uploadError.textContent = `⚠️ File is ${sizeMB} MB — please keep it under ${MAX_MB} MB.`;
+                uploadError.style.display = 'block';
+                fileInput.value = '';
+                return;
+            }
+
+            // All good — show a tick + filename, and reveal the Analyse button.
+            filenameDisplay.textContent  = '✅  ' + file.name;
+            filenameDisplay.style.display = 'block';
+            analyseBtn.style.display      = 'block';
+        });
+
+        // ── Sends the file to Flask when 'Analyse My Playing' is clicked ──
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Disable the button and show a loading message so the user knows
+            // something is happening (uploads can take a second or two).
+            analyseBtn.disabled    = true;
+            analyseBtn.textContent = 'Uploading…';
+            uploadStatus.textContent = '⏳ Sending your recording to Tarra…';
+            uploadStatus.style.display = 'block';
+
+            // FormData is a built-in object that packages the file for sending.
+            // .append('file', file) adds the file under the key 'file' —
+            // Flask will look for this exact key on the server side.
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // fetch() sends an HTTP request. We use POST because we're
+                // sending data to the server (not just reading a page).
+                // 'body: formData' tells fetch to send our file.
+                // We do NOT set Content-Type — the browser sets it automatically
+                // to 'multipart/form-data' with the correct boundary.
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body:   formData
+                });
+
+                // response.json() reads the JSON Flask sends back and
+                // converts it into a plain JavaScript object.
+                const data = await response.json();
+
+                if (data.success) {
+                    uploadStatus.textContent = '🎸  ' + data.message;
+                    uploadStatus.style.color  = 'var(--teal)';
+                    analyseBtn.textContent    = '✅ Uploaded!';
+                } else {
+                    // Flask returned success: false with an error description.
+                    uploadStatus.textContent = '⚠️  ' + (data.error || 'Something went wrong.');
+                    uploadStatus.style.color  = '#ff6b6b';
+                    analyseBtn.disabled    = false;
+                    analyseBtn.textContent = 'Analyse My Playing';
+                }
+            } catch (err) {
+                // catch() runs if the network request itself failed
+                // (no internet, server crashed, etc.).
+                uploadStatus.textContent = '⚠️  Could not reach the server. Please try again.';
+                uploadStatus.style.color  = '#ff6b6b';
+                analyseBtn.disabled    = false;
+                analyseBtn.textContent = 'Analyse My Playing';
+            }
+        }
+
+        // ── Drag & drop — highlight the box when dragging over it ────────
+        uploadBox.addEventListener('dragover', e => {
+            e.preventDefault(); // stops the browser from navigating away
+            uploadBox.style.borderColor = 'var(--teal)';
+            uploadBox.style.background  = 'rgba(0,212,170,0.06)';
+        });
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.style.borderColor = '';
+            uploadBox.style.background  = '';
+        });
+        uploadBox.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadBox.style.borderColor = '';
+            uploadBox.style.background  = '';
+
+            // e.dataTransfer.files holds files dropped on the element.
+            const dropped = e.dataTransfer.files[0];
+            if (!dropped) return;
+
+            // We need to put the dropped file into fileInput.files.
+            // DataTransfer is the only way to set a file input's files list
+            // from JavaScript (for security reasons browsers block direct assignment).
+            const dt = new DataTransfer();
+            dt.items.add(dropped);
+            fileInput.files = dt.files;
+
+            // Manually fire the 'change' event so our validation code above runs,
+            // exactly as if the user had picked the file through the picker.
+            fileInput.dispatchEvent(new Event('change'));
+        });
     </script>
 </body>
 </html>
