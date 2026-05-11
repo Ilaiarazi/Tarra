@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarra — Guitar Feedback AI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --teal: #00d4aa;
+            --teal-dim: rgba(0, 212, 170, 0.3);
+            --bg: #080c10;
+            --surface: rgba(255, 255, 255, 0.04);
+            --text: #e8eaf6;
+            --muted: rgba(232, 234, 246, 0.55);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* ── Canvas ── */
+        #guitarCanvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ── Glow Orb ── */
+        .glow-orb {
+            position: fixed;
+            width: 700px; height: 700px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,212,170,0.10) 0%, transparent 70%);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            animation: orbPulse 5s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes orbPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+            50%       { transform: translate(-50%, -50%) scale(1.18); opacity: 1; }
+        }
+
+        /* ── Floating Notes ── */
+        .notes-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .note {
+            position: absolute;
+            bottom: -60px;
+            color: var(--teal);
+            opacity: 0;
+            animation: floatUp var(--dur) var(--del) ease-in infinite;
+        }
+
+        @keyframes floatUp {
+            0%   { transform: translateY(0) rotate(0deg);   opacity: 0; }
+            8%   { opacity: 0.55; }
+            90%  { opacity: 0.2; }
+            100% { transform: translateY(-115vh) rotate(340deg); opacity: 0; }
+        }
+
+        /* ── Navbar ── */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.1rem 3rem;
+            background: rgba(8, 12, 16, 0.55);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border-bottom: 1px solid rgba(0, 212, 170, 0.08);
+        }
+
+        .nav-logo {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--teal);
+            letter-spacing: 0.08em;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            letter-spacing: 0.04em;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--teal); }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8rem 2rem 5rem;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: rgba(0, 212, 170, 0.08);
+            border: 1px solid rgba(0, 212, 170, 0.28);
+            color: var(--teal);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            padding: 0.45rem 1.3rem;
+            border-radius: 100px;
+            margin-bottom: 2.2rem;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 8.5vw, 7.5rem);
+            font-weight: 900;
+            line-height: 1.0;
+            letter-spacing: -0.04em;
+            margin-bottom: 1.6rem;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, var(--teal) 0%, #00aaff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2.2vw, 1.3rem);
+            color: var(--muted);
+            max-width: 540px;
+            line-height: 1.75;
+            margin-bottom: 3rem;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .btn-primary {
+            background: var(--teal);
+            color: #080c10;
+            border: none;
+            padding: 1rem 2.6rem;
+            border-radius: 100px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 0 45px rgba(0, 212, 170, 0.55);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.14);
+            padding: 1rem 2.6rem;
+            border-radius: 100px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: border-color 0.2s, color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+
+        /* Scroll hint */
+        .scroll-hint {
+            position: absolute;
+            bottom: 2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+            color: var(--muted);
+            font-size: 0.7rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            opacity: 0;
+        }
+
+        .scroll-hint::after {
+            content: '';
+            width: 1px;
+            height: 44px;
+            background: linear-gradient(to bottom, var(--teal), transparent);
+            animation: lineDrop 1.8s ease-in-out infinite;
+        }
+
+        @keyframes lineDrop {
+            0%, 100% { transform: scaleY(0.6) translateY(-6px); opacity: 0.5; }
+            50%       { transform: scaleY(1) translateY(4px);   opacity: 1; }
+        }
+
+        /* ── How It Works ── */
+        .how-it-works {
+            position: relative;
+            z-index: 1;
+            padding: 9rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 0.9rem;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(1.9rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 4.5rem;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .step {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 22px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(50px);
+            cursor: default;
+            transition: border-color 0.35s, transform 0.25s;
+        }
+
+        .step:hover {
+            border-color: rgba(0, 212, 170, 0.28);
+            transform: translateY(-4px);
+        }
+
+        .step::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,212,170,0.05) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.35s;
+        }
+
+        .step:hover::before { opacity: 1; }
+
+        .step-num {
+            font-size: 3.2rem;
+            font-weight: 900;
+            color: rgba(0, 212, 170, 0.12);
+            line-height: 1;
+            margin-bottom: 1.2rem;
+        }
+
+        .step-icon { font-size: 2.2rem; margin-bottom: 1rem; }
+
+        .step h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .step p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* ── Upload Section ── */
+        .upload-section {
+            position: relative;
+            z-index: 1;
+            padding: 5rem 2rem 10rem;
+            max-width: 680px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .upload-box {
+            background: var(--surface);
+            border: 2px dashed rgba(0, 212, 170, 0.22);
+            border-radius: 26px;
+            padding: 4.5rem 2rem;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s, transform 0.3s;
+            opacity: 0;
+            transform: translateY(35px);
+        }
+
+        .upload-box:hover {
+            border-color: var(--teal);
+            background: rgba(0, 212, 170, 0.04);
+            transform: translateY(-4px);
+        }
+
+        .upload-icon { font-size: 3.8rem; margin-bottom: 1.5rem; }
+
+        .upload-box h3 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            margin-bottom: 0.7rem;
+        }
+
+        .upload-box p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 2.2rem;
+        }
+
+        /* ── Footer ── */
+        footer {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 2.2rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        footer span { color: var(--teal); }
+
+        @media (max-width: 768px) {
+            nav { padding: 1rem 1.5rem; }
+            .nav-links { display: none; }
+            .hero { padding: 6rem 1.5rem 4rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="guitarCanvas"></canvas>
+    <div class="glow-orb"></div>
+    <div class="notes-container" id="notesContainer"></div>
+
+    <nav>
+        <a class="nav-logo" href="#">Tarra</a>
+        <ul class="nav-links">
+            <li><a href="#how">How It Works</a></li>
+            <li><a href="#upload">Try It</a></li>
+            <li><a href="#">About</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-badge">AI Guitar Feedback</div>
+        <h1>Play it.<br><span class="gradient">Hear the truth.</span></h1>
+        <p>Upload a recording of your guitar playing and get instant AI feedback on your tone, timing, and technique.</p>
+        <div class="hero-cta">
+            <a href="#upload" class="btn-primary">Upload a Recording</a>
+            <a href="#how" class="btn-secondary">How it works</a>
+        </div>
+        <div class="scroll-hint">Scroll</div>
+    </section>
+
+    <section class="how-it-works" id="how">
+        <p class="section-label">The Process</p>
+        <h2 class="section-title">Three steps to better playing</h2>
+        <div class="steps-grid">
+            <div class="step">
+                <div class="step-num">01</div>
+                <div class="step-icon">🎸</div>
+                <h3>Record Yourself</h3>
+                <p>Grab your phone or mic and capture a short clip — a riff, chord progression, or anything you want feedback on.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">02</div>
+                <div class="step-icon">📤</div>
+                <h3>Upload to Tarra</h3>
+                <p>Drop your file here. MP3, WAV, and M4A all supported. No account needed — just drag, drop, and go.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">03</div>
+                <div class="step-icon">🎯</div>
+                <h3>Get Instant Feedback</h3>
+                <p>Tarra analyses your pitch accuracy, rhythm, and dynamics — then gives you clear, actionable notes to level up fast.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="upload-section" id="upload">
+        <p class="section-label">Get Started</p>
+        <h2 class="section-title" style="margin-bottom:2.5rem">Drop your recording</h2>
+        <div class="upload-box" id="uploadBox">
+            <div class="upload-icon">🎵</div>
+            <h3>Drag &amp; drop your audio file</h3>
+            <p>MP3 · WAV · M4A &nbsp;·&nbsp; Max 50 MB</p>
+            <a href="#" class="btn-primary">Browse Files</a>
+        </div>
+    </section>
+
+    <footer>
+        Built with ♥ by <span>Tarra</span> &nbsp;·&nbsp; AI-powered guitar feedback
+    </footer>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        // ── 1. GUITAR STRINGS ─────────────────────────────────────────
+        const canvas = document.getElementById('guitarCanvas');
+        const ctx    = canvas.getContext('2d');
+        let W, H;
+        const mouse = { x: -9999, y: -9999 };
+
+        function resize() {
+            W = canvas.width  = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+        const strings = [
+            { yFrac: 0.28, color: '#00d4aa', speed: 1.0, amp: 0 },
+            { yFrac: 0.38, color: '#00c4d4', speed: 1.2, amp: 0 },
+            { yFrac: 0.48, color: '#0097c4', speed: 0.9, amp: 0 },
+            { yFrac: 0.57, color: '#00d4aa', speed: 1.1, amp: 0 },
+            { yFrac: 0.65, color: '#00b4e0', speed: 1.3, amp: 0 },
+            { yFrac: 0.73, color: '#4dd0e1', speed: 0.85,amp: 0 },
+        ];
+
+        let t = 0;
+        (function drawLoop() {
+            ctx.clearRect(0, 0, W, H);
+            t += 0.013;
+
+            strings.forEach((s, i) => {
+                const baseY    = s.yFrac * H;
+                const dist     = Math.abs(mouse.y - baseY);
+                const prox     = Math.max(0, 1 - dist / 200);
+                const targetAmp = prox * 60;
+                s.amp += (targetAmp - s.amp) * 0.07;
+
+                const glowRatio = s.amp / 60;
+                ctx.shadowColor = s.color;
+                ctx.shadowBlur  = 6 + glowRatio * 24;
+                ctx.strokeStyle = s.color;
+                ctx.globalAlpha = 0.10 + glowRatio * 0.50;
+                ctx.lineWidth   = 0.8 + glowRatio * 2.2;
+
+                const phase = (mouse.x / Math.max(W, 1)) * Math.PI * 1.8;
+                const freq  = 2.2 + i * 0.45;
+
+                ctx.beginPath();
+                ctx.moveTo(0, baseY);
+                for (let x = 0; x <= W; x += 3) {
+                    const y = baseY + Math.sin((x / W) * Math.PI * freq + t * s.speed + phase + i * 0.7) * s.amp;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            });
+
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur  = 0;
+            requestAnimationFrame(drawLoop);
+        })();
+
+        // ── 2. FLOATING NOTES ─────────────────────────────────────────
+        const noteChars = ['♩','♪','♫','♬','𝄞','𝄢'];
+        const notesCont = document.getElementById('notesContainer');
+        for (let i = 0; i < 20; i++) {
+            const el  = document.createElement('span');
+            el.className = 'note';
+            el.textContent = noteChars[Math.floor(Math.random() * noteChars.length)];
+            const dur  = (9 + Math.random() * 13).toFixed(1);
+            const del  = (Math.random() * 16).toFixed(1);
+            const size = (0.85 + Math.random() * 1.1).toFixed(2);
+            el.style.cssText = `left:${(Math.random()*94).toFixed(1)}%;--dur:${dur}s;--del:${del}s;font-size:${size}rem;`;
+            notesCont.appendChild(el);
+        }
+
+        // ── 3. HERO ENTRANCE ──────────────────────────────────────────
+        gsap.timeline({ delay: 0.25 })
+            .to('.hero-badge', { opacity:1, y:0, duration:0.7, ease:'power3.out' })
+            .to('.hero h1',    { opacity:1, y:0, duration:0.85,ease:'power3.out' }, '-=0.4')
+            .to('.hero p',     { opacity:1, y:0, duration:0.7, ease:'power3.out' }, '-=0.5')
+            .to('.hero-cta',   { opacity:1, y:0, duration:0.65,ease:'power3.out' }, '-=0.45')
+            .to('.scroll-hint',{ opacity:0.45,   duration:0.5 },                   '-=0.2');
+
+        // ── 4. SCROLL ANIMATIONS ──────────────────────────────────────
+        gsap.utils.toArray('.step').forEach((el, i) => {
+            gsap.to(el, {
+                opacity: 1, y: 0, duration: 0.85, ease: 'power3.out', delay: i * 0.13,
+                scrollTrigger: { trigger: el, start: 'top 86%', toggleActions: 'play none none none' }
+            });
+        });
+
+        gsap.to('.upload-box', {
+            opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+            scrollTrigger: { trigger: '.upload-box', start: 'top 87%' }
+        });
+
+        // ── 5. DRAG & DROP HIGHLIGHT ──────────────────────────────────
+        const box = document.getElementById('uploadBox');
+        box.addEventListener('dragover',  e => { e.preventDefault(); box.style.borderColor='var(--teal)'; box.style.background='rgba(0,212,170,0.06)'; });
+        box.addEventListener('dragleave', ()=> { box.style.borderColor=''; box.style.background=''; });
+        box.addEventListener('drop',      e => { e.preventDefault(); box.style.borderColor=''; box.style.background=''; });
+    </script>
+</body>
+</html>
