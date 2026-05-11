@@ -376,6 +376,106 @@
             margin-bottom: 2.2rem;
         }
 
+        /* ── Results Section ── */
+        .results-section {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4rem 2rem 8rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid rgba(0,212,170,0.12);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .summary-card .card-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--teal);
+            line-height: 1;
+            margin-bottom: 0.4rem;
+        }
+
+        .summary-card .card-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .confidence-bar-wrap {
+            background: rgba(255,255,255,0.06);
+            border-radius: 100px;
+            height: 6px;
+            margin: 0.6rem auto 0;
+            width: 80%;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--teal), #00aaff);
+            transition: width 1s ease;
+        }
+
+        .notes-table-wrap {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .notes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        .notes-table th {
+            background: rgba(0,212,170,0.08);
+            color: var(--teal);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.9rem 1.2rem;
+            text-align: left;
+        }
+
+        .notes-table td {
+            padding: 0.7rem 1.2rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            color: var(--text);
+        }
+
+        .notes-table tr:hover td {
+            background: rgba(0,212,170,0.03);
+        }
+
+        .conf-pill {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .conf-high   { background: rgba(0,212,170,0.15); color: var(--teal); }
+        .conf-medium { background: rgba(255,200,0,0.12); color: #ffc800; }
+        .conf-low    { background: rgba(255,107,107,0.12); color: #ff6b6b; }
+
         /* ── Footer ── */
         footer {
             position: relative;
@@ -488,6 +588,37 @@
             <!-- Status line shown during upload and after (loading / success / error). -->
             <p id="uploadStatus" style="display:none; margin-top:0.9rem;
                color:var(--muted); font-size:0.9rem;"></p>
+        </div>
+    </section>
+
+    <!-- Results section — hidden until analysis completes -->
+    <section class="results-section" id="resultsSection" style="display:none">
+        <p class="section-label">Your Results</p>
+        <h2 class="section-title" id="resultsHeading">Analysis Complete</h2>
+
+        <!-- Four summary stat cards -->
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <!-- Confidence interpretation text -->
+        <p id="confidenceLabel" style="text-align:center; color:var(--muted);
+           font-size:0.9rem; margin-bottom:2.5rem;"></p>
+
+        <!-- Full notes table -->
+        <div class="notes-table-wrap">
+            <table class="notes-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Note</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Duration</th>
+                        <th>Confidence</th>
+                        <th>String area</th>
+                    </tr>
+                </thead>
+                <tbody id="notesTableBody"></tbody>
+            </table>
         </div>
     </section>
 
@@ -652,58 +783,138 @@
             analyseBtn.style.display      = 'block';
         });
 
-        // ── Sends the file to Flask when 'Analyse My Playing' is clicked ──
+        // ── Sends the file to Flask and displays the analysis results ──────
         async function uploadFile() {
             const file = fileInput.files[0];
             if (!file) return;
 
-            // Disable the button and show a loading message so the user knows
-            // something is happening (uploads can take a second or two).
-            analyseBtn.disabled    = true;
-            analyseBtn.textContent = 'Uploading…';
-            uploadStatus.textContent = '⏳ Sending your recording to Tarra…';
+            // Show a loading state. Analysis takes ~25 seconds so we warn the user.
+            analyseBtn.disabled      = true;
+            analyseBtn.textContent   = 'Analysing…';
+            uploadStatus.textContent = '⏳ Uploading and analysing your recording… this takes about 25 seconds, please wait.';
+            uploadStatus.style.color   = 'var(--muted)';
             uploadStatus.style.display = 'block';
 
-            // FormData is a built-in object that packages the file for sending.
-            // .append('file', file) adds the file under the key 'file' —
-            // Flask will look for this exact key on the server side.
+            // Hide any previous results while we wait for new ones.
+            document.getElementById('resultsSection').style.display = 'none';
+
+            // FormData packages the file for sending via HTTP POST.
             const formData = new FormData();
             formData.append('file', file);
+            // 'file' must match request.files['file'] in Flask.
 
             try {
-                // fetch() sends an HTTP request. We use POST because we're
-                // sending data to the server (not just reading a page).
-                // 'body: formData' tells fetch to send our file.
-                // We do NOT set Content-Type — the browser sets it automatically
-                // to 'multipart/form-data' with the correct boundary.
+                // fetch() sends the file to our /upload route and WAITS for the response.
+                // The server runs Basic Pitch during this wait (~25 seconds).
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body:   formData
+                    // No Content-Type header — the browser sets it automatically
+                    // to multipart/form-data with the correct boundary.
                 });
 
-                // response.json() reads the JSON Flask sends back and
-                // converts it into a plain JavaScript object.
+                // response.json() parses the JSON string Flask returns into a JS object.
                 const data = await response.json();
 
                 if (data.success) {
                     uploadStatus.textContent = '🎸  ' + data.message;
-                    uploadStatus.style.color  = 'var(--teal)';
-                    analyseBtn.textContent    = '✅ Uploaded!';
+                    uploadStatus.style.color = 'var(--teal)';
+                    analyseBtn.textContent   = '✅ Done!';
+
+                    // Show the results section if we got notes back.
+                    if (data.notes && data.notes.length > 0) {
+                        showResults(data);
+                    }
                 } else {
-                    // Flask returned success: false with an error description.
                     uploadStatus.textContent = '⚠️  ' + (data.error || 'Something went wrong.');
-                    uploadStatus.style.color  = '#ff6b6b';
+                    uploadStatus.style.color = '#ff6b6b';
                     analyseBtn.disabled    = false;
                     analyseBtn.textContent = 'Analyse My Playing';
                 }
+
             } catch (err) {
-                // catch() runs if the network request itself failed
-                // (no internet, server crashed, etc.).
+                // This runs if the network request failed entirely.
                 uploadStatus.textContent = '⚠️  Could not reach the server. Please try again.';
-                uploadStatus.style.color  = '#ff6b6b';
+                uploadStatus.style.color = '#ff6b6b';
                 analyseBtn.disabled    = false;
                 analyseBtn.textContent = 'Analyse My Playing';
             }
+        }
+
+        // ── Builds and shows the results section ─────────────────────────────
+        function showResults(data) {
+            const s = data.summary; // shorthand for the summary object from Flask
+
+            // ─ Update the heading ────────────────────────────────────────────
+            document.getElementById('resultsHeading').textContent =
+                `${s.total_notes} notes detected in ${data.filename}`;
+
+            // ─ Build the four summary stat cards ─────────────────────────────
+            // Each card has a big number (card-value) and a small label (card-label).
+            const cards = [
+                { value: s.total_notes,          label: 'Notes detected' },
+                { value: s.unique_notes.length,  label: 'Unique pitches' },
+                { value: s.recording_length + 's', label: 'Recording length' },
+                {
+                    // The confidence card also gets a coloured bar underneath the number.
+                    value: s.avg_confidence + '%',
+                    label: 'Avg confidence',
+                    bar:   s.avg_confidence    // percentage for the fill bar width
+                }
+            ];
+
+            const grid = document.getElementById('summaryGrid');
+            grid.innerHTML = ''; // clear any previous results
+
+            cards.forEach(card => {
+                // For each card, build HTML and add it to the grid.
+                const div = document.createElement('div');
+                div.className = 'summary-card';
+                div.innerHTML = `
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-label">${card.label}</div>
+                    ${card.bar !== undefined ? `
+                        <div class="confidence-bar-wrap">
+                            <div class="confidence-bar-fill" style="width:${card.bar}%"></div>
+                        </div>` : ''}
+                `;
+                grid.appendChild(div);
+            });
+
+            // ─ Show the confidence interpretation text ────────────────────────
+            document.getElementById('confidenceLabel').textContent =
+                s.confidence_label;
+
+            // ─ Build the notes table rows ─────────────────────────────────
+            const tbody = document.getElementById('notesTableBody');
+            tbody.innerHTML = ''; // clear old rows
+
+            data.notes.forEach((note, i) => {
+                // Pick a CSS class for the confidence pill colour:
+                //   green  = high (≥70%), yellow = medium (40–69%), red = low (<40%)
+                const pillClass = note.confidence >= 70 ? 'conf-high'
+                                : note.confidence >= 40 ? 'conf-medium'
+                                : 'conf-low';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td><strong>${note.note}</strong></td>
+                    <td>${note.start}s</td>
+                    <td>${note.end}s</td>
+                    <td>${note.duration}s</td>
+                    <td><span class="conf-pill ${pillClass}">${note.confidence}%</span></td>
+                    <td>${note.string_area}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // ─ Reveal the section and scroll to it ───────────────────────────
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+
+            // scrollIntoView() smoothly scrolls the page so the results are visible.
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // ── Drag & drop — highlight the box when dragging over it ────────

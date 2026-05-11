@@ -1,125 +1,197 @@
-import os                                  # os lets us create folders and build file paths
+import os
 from flask import Flask, render_template, request, jsonify
-# render_template → serves our HTML page
-# request         → gives us access to data sent by the browser (files, form fields, etc.)
-# jsonify         → converts a Python dict into a proper JSON response
-
 from werkzeug.utils import secure_filename
-# secure_filename() cleans up filenames to prevent security attacks.
-# e.g. if someone uploads a file called "../../etc/passwd", secure_filename
-# strips the dangerous path and returns just "etc_passwd" (harmless).
+
+# ── Try to load Basic Pitch once at startup ───────────────────────────────────
+# We import it here (at the top) so the AI model loads into memory when
+# gunicorn starts, rather than on every request. This makes the first
+# analysis much faster.
+try:
+    from basic_pitch.inference import predict as bp_predict
+    from basic_pitch import ICASSP_2022_MODEL_PATH
+    BASIC_PITCH_READY = True   # flag we can check later
+except ImportError:
+    BASIC_PITCH_READY = False  # basic-pitch not installed — graceful fallback
 
 app = Flask(__name__)
 
-# ── Upload configuration ──────────────────────────────────────────────────────
-
-# Where uploaded files will be stored. 'uploads' means a folder called
-# 'uploads' inside the same directory as main.py.
-UPLOAD_FOLDER = 'uploads'
-
-# A Python set (like a list but faster to look up) of allowed file extensions.
-# Only MP3 and WAV are accepted.
+# ── Upload settings ───────────────────────────────────────────────────────────
+UPLOAD_FOLDER     = 'uploads'
 ALLOWED_EXTENSIONS = {'mp3', 'wav'}
+MAX_FILE_SIZE     = 10 * 1024 * 1024   # 10 MB in bytes
 
-# 10 MB in bytes. Python evaluates 10 * 1024 * 1024 = 10,485,760 bytes.
-MAX_FILE_SIZE = 10 * 1024 * 1024
-
-# os.makedirs creates the 'uploads' folder if it doesn't already exist.
-# exist_ok=True means "don't crash if the folder is already there".
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Store these settings in Flask's config dictionary so any part of the
-# app can read them with app.config['KEY'].
 app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-# MAX_CONTENT_LENGTH is a special Flask setting — Flask will automatically
-# reject any request whose body is larger than this value (returns 413 error).
 
 
-# ── Helper function ───────────────────────────────────────────────────────────
+# ── Helper: MIDI number → note name ──────────────────────────────────────────
+# MIDI numbers are integers (0–127) that represent musical pitches.
+# 60 = Middle C, 69 = A4 (concert pitch 440 Hz), 64 = E4 (open top guitar string).
 
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+def midi_to_note_name(midi_number):
+    """Convert e.g. 64 → 'E4'. Used to make output human-readable."""
+    note   = NOTE_NAMES[int(midi_number) % 12]
+    octave = (int(midi_number) // 12) - 1
+    return f"{note}{octave}"
+
+
+# ── Helper: check file extension ──────────────────────────────────────────────
 def allowed_file(filename):
-    """
-    Returns True if the filename ends in .mp3 or .wav (case-insensitive).
-
-    How it works:
-      'my_song.MP3'.rsplit('.', 1)  →  ['my_song', 'MP3']
-      [1]                           →  'MP3'
-      .lower()                      →  'mp3'
-      in ALLOWED_EXTENSIONS         →  True  ✓
-
-    The 'in filename' check first makes sure there IS a dot —
-    a file called just 'mysong' (no extension) would return False.
-    """
+    """Returns True only for .mp3 and .wav files."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# ── Helper: rough guitar string from pitch ────────────────────────────────────
+def guitar_string_area(midi_number):
+    """Returns a rough guess of which string region the note sits in."""
+    if midi_number <= 43:   return 'Low E / A area'
+    if midi_number <= 52:   return 'A / D area'
+    if midi_number <= 57:   return 'D / G area'
+    if midi_number <= 62:   return 'G / B area'
+    return 'B / high E area'
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route('/')
 def home():
-    # Serve the animated landing page from templates/index.html
     return render_template('index.html')
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """
-    Handles audio file uploads from the frontend.
-
-    methods=['POST'] means this route ONLY responds to POST requests.
-    A POST request is used when the browser is sending data to the server
-    (as opposed to GET, which just fetches a page).
+    Receives the audio file, saves it, runs Basic Pitch,
+    and returns the detected notes as JSON.
+    The browser's fetch() call waits for this response (up to 120 seconds).
     """
 
-    # request.files is a dictionary of all files sent with the request.
-    # We check if the key 'file' exists — this matches formData.append('file', ...)
-    # in the JavaScript. If the key is missing, something went wrong on the frontend.
+    # ── Validate the incoming request ────────────────────────────────────────
+
     if 'file' not in request.files:
-        # jsonify() turns a Python dict into a JSON string response.
-        # 400 is the HTTP status code for "Bad Request".
         return jsonify({'success': False, 'error': 'No file was sent.'}), 400
 
-    # Get the actual file object from the request.
     file = request.files['file']
 
-    # If the user submitted the form without choosing a file,
-    # the filename will be an empty string.
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No file selected.'}), 400
 
-    # Run the filename through our allowed_file() helper.
     if not allowed_file(file.filename):
         return jsonify({'success': False,
                         'error': 'Only MP3 and WAV files are allowed.'}), 400
 
-    # secure_filename() sanitises the filename — removes slashes, dots that
-    # could navigate up directories, spaces, etc.
-    # Example: '../../../evil.mp3' → 'evil.mp3'
+    # ── Save to disk ──────────────────────────────────────────────────────────
+
     safe_name = secure_filename(file.filename)
+    # secure_filename strips dangerous characters like '..' or '/'
+    # so the file can't escape the uploads folder.
 
-    # Build the full path where the file will be saved on disk.
-    # os.path.join() combines paths correctly on any OS:
-    #   os.path.join('uploads', 'my_song.mp3')  →  'uploads/my_song.mp3'
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
-
-    # Actually write the file to disk at the path we just built.
     file.save(save_path)
+    # At this point the file is physically on disk at uploads/safe_name.
 
-    # Return a JSON success response. The frontend's fetch() call will receive
-    # this and use data.message to update the page.
-    return jsonify({
-        'success':  True,
-        'filename': safe_name,
-        'message':  f'File received! \u201c{safe_name}\u201d is ready for analysis.'
-    })
+    # ── Run Basic Pitch ───────────────────────────────────────────────────────
 
+    if not BASIC_PITCH_READY:
+        # basic-pitch wasn't importable at startup — return a graceful error.
+        return jsonify({
+            'success': False,
+            'error': 'Basic Pitch is not installed. Run: pip install basic-pitch'
+        }), 500
 
-# ── Dev server entry point ────────────────────────────────────────────────────
+    try:
+        # bp_predict() is the core Basic Pitch function (imported above as alias).
+        # It reads the audio file and returns three objects:
+        #
+        #   model_output  — raw neural network arrays (we don't use these)
+        #   midi_data     — a MIDI representation (like digital sheet music)
+        #   note_events   — a list of detected notes with timing
+        #
+        # Each item in note_events is a tuple:
+        #   (start_seconds, end_seconds, midi_pitch, amplitude, pitch_bends)
+
+        model_output, midi_data, note_events = bp_predict(
+            save_path,
+            ICASSP_2022_MODEL_PATH
+        )
+
+        # ── Build a clean list of notes for the frontend ──────────────────
+
+        notes_list = []
+        for note in note_events:
+            start    = float(note[0])
+            end      = float(note[1])
+            pitch    = int(note[2])
+            conf     = float(note[3])   # 0.0–1.0
+
+            notes_list.append({
+                'note':        midi_to_note_name(pitch),
+                'start':       round(start, 2),
+                'end':         round(end, 2),
+                'duration':    round(end - start, 2),
+                'confidence':  round(conf * 100),   # convert to percentage integer
+                'string_area': guitar_string_area(pitch)
+            })
+
+        # ── Build summary statistics ──────────────────────────────────────
+
+        total = len(notes_list)
+
+        if total == 0:
+            return jsonify({
+                'success': True,
+                'filename': safe_name,
+                'message': 'No notes detected. Try a clearer recording with less background noise.',
+                'notes': [],
+                'summary': {}
+            })
+
+        unique_notes    = sorted(set(n['note'] for n in notes_list))
+        avg_confidence  = round(sum(n['confidence'] for n in notes_list) / total)
+        recording_length = round(float(note_events[-1][1]), 1)
+        # note_events[-1] is the last detected note; [1] is its end time in seconds.
+
+        notes_per_second = round(total / recording_length, 1) if recording_length > 0 else 0
+
+        # Interpret the confidence score in plain English
+        if avg_confidence >= 70:
+            confidence_label = 'High — notes were clear and well-defined'
+        elif avg_confidence >= 40:
+            confidence_label = 'Medium — some notes were unclear (try reducing background noise)'
+        else:
+            confidence_label = 'Low — recording may have too much noise or the instrument was quiet'
+
+        summary = {
+            'total_notes':        total,
+            'unique_notes':       unique_notes,
+            'avg_confidence':     avg_confidence,
+            'confidence_label':   confidence_label,
+            'recording_length':   recording_length,
+            'notes_per_second':   notes_per_second
+        }
+
+        return jsonify({
+            'success':  True,
+            'filename': safe_name,
+            'message':  f'Analysis complete — {total} notes detected across {recording_length}s.',
+            'notes':    notes_list,
+            'summary':  summary
+        })
+
+    except Exception as e:
+        # Something went wrong during analysis (e.g. corrupted file, unsupported codec).
+        # We still return 200 (not an error code) because the file was saved successfully.
+        return jsonify({
+            'success':      False,
+            'filename':     safe_name,
+            'error':        f'Analysis failed: {str(e)}',
+        }), 500
+
 
 if __name__ == '__main__':
-    # This block only runs when you execute 'python3 main.py' directly.
-    # When Replit uses gunicorn (the production server), it imports the 'app'
-    # object instead — so this block is skipped in production.
     app.run(host='0.0.0.0', port=8080)
