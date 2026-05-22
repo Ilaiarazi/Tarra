@@ -72,6 +72,88 @@ def results():
     return render_template('results.html')
 
 
+@app.route('/solo-ideas', methods=['POST'])
+def solo_ideas():
+    data = request.get_json()
+    key = data.get('key', 'A')
+    mode = data.get('mode', 'minor')
+    chords = data.get('chords', '')
+
+    prompt = f"""You are a guitar teacher. The student is playing in {key} {mode}.
+Chord progression: {chords if chords else 'not specified'}
+
+Write 2 short guitar solo lick ideas in standard ASCII tab format. Each lick should be 1-2 bars, playable by an intermediate guitarist. Use this exact format:
+
+Lick 1 — [brief name]
+e|---|
+B|---|
+G|---|
+D|---|
+A|---|
+E|---|
+
+Lick 2 — [brief name]
+e|---|
+B|---|
+G|---|
+D|---|
+A|---|
+E|---|
+
+After the tabs, add one sentence explaining what makes these licks work over this key/progression. Keep it plain English, no theory jargon."""
+
+    try:
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return jsonify({'result': message.content[0].text})
+    except Exception:
+        return jsonify({'error': 'Could not generate solo ideas. Please try again.'}), 500
+
+
+@app.route('/scales', methods=['POST'])
+def scales():
+    data = request.get_json()
+    key = data.get('key', 'A')
+    mode = data.get('mode', 'minor')
+    chords = data.get('chords', '')
+
+    prompt = f"""You are a guitar teacher. The student is playing in {key} {mode}.
+Chord progression: {chords if chords else 'not specified'}
+
+List the 4 most useful scales for soloing over this. For each one give:
+- The scale name (keep it short)
+- One sentence on why it fits (plain English, no jargon)
+- The notes in the scale, listed simply like: A B C D E F G
+
+Return as a JSON array like this:
+[
+  {{"name": "A Natural Minor", "why": "...", "notes": "A B C D E F G"}},
+  ...
+]
+
+Return only the JSON array, nothing else."""
+
+    try:
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        import json as json_lib, re as re_lib
+        raw = message.content[0].text
+        raw = re_lib.sub(r'^```(?:json)?\s*', '', raw.strip())
+        raw = re_lib.sub(r'\s*```$', '', raw)
+        scales_data = json_lib.loads(raw)
+        return jsonify({'scales': scales_data})
+    except Exception:
+        return jsonify({'error': 'Could not generate scale suggestions. Please try again.'}), 500
+
+
 @app.route('/feedback', methods=['POST'])
 def feedback():
     data = request.get_json()

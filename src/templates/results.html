@@ -3,356 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarra — Your Results</title>
+    <title>Tarra — Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --teal: #00d4aa;
-            --teal-dim: rgba(0, 212, 170, 0.3);
             --bg: #080c10;
-            --surface: rgba(255, 255, 255, 0.04);
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.07);
             --text: #e8eaf6;
-            --muted: rgba(232, 234, 246, 0.55);
+            --muted: rgba(232,234,246,0.55);
         }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
-        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
 
+        /* ── Nav ── */
         nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1.1rem 3rem;
-            background: rgba(8, 12, 16, 0.85);
-            border-bottom: 1px solid rgba(0, 212, 170, 0.08);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 2.5rem;
+            background: rgba(8,12,16,0.85);
+            border-bottom: 1px solid rgba(0,212,170,0.08);
         }
-
-        .nav-logo {
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: var(--teal);
-            letter-spacing: 0.08em;
-            text-decoration: none;
-        }
-
-        .btn-back {
-            background: transparent;
-            color: var(--muted);
-            border: 1px solid rgba(255,255,255,0.14);
-            padding: 0.55rem 1.4rem;
-            border-radius: 100px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: border-color 0.2s, color 0.2s;
-        }
-
+        .nav-logo { font-size: 1.5rem; font-weight: 900; color: var(--teal); text-decoration: none; letter-spacing: 0.08em; }
+        .btn-back { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
         .btn-back:hover { border-color: var(--teal); color: var(--teal); }
 
-        .page {
-            max-width: 940px;
-            margin: 0 auto;
-            padding: 3.5rem 2rem 6rem;
+        /* ── Page ── */
+        .page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
+
+        .page-header { margin-bottom: 2rem; }
+        .page-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); margin-bottom: 0.4rem; }
+        .page-title { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 900; letter-spacing: -0.02em; }
+        .page-subtitle { color: var(--muted); font-size: 0.88rem; margin-top: 0.3rem; }
+
+        /* ── Tabs ── */
+        .tab-bar {
+            display: flex; gap: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
         }
-
-        .page-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            color: var(--teal);
-            margin-bottom: 0.6rem;
+        .tab-btn {
+            background: transparent; border: none; color: var(--muted);
+            padding: 0.75rem 1.3rem; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; border-bottom: 2px solid transparent;
+            margin-bottom: -1px; transition: color 0.2s, border-color 0.2s;
         }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
 
-        .page-title {
-            font-size: clamp(1.7rem, 4vw, 2.6rem);
-            font-weight: 900;
-            letter-spacing: -0.025em;
-            margin-bottom: 0.4rem;
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Summary Cards ── */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .card { background: var(--surface); border: 1px solid rgba(0,212,170,0.12); border-radius: 14px; padding: 1.3rem; text-align: center; }
+        .card-value { font-size: 1.9rem; font-weight: 900; color: var(--teal); line-height: 1; margin-bottom: 0.35rem; }
+        .card-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+        .conf-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 100px; height: 5px; margin: 0.5rem auto 0; width: 75%; overflow: hidden; }
+        .conf-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--teal), #00aaff); transition: width 1s ease; }
+
+        /* ── Chart container ── */
+        .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; }
+
+        /* ── Feedback box ── */
+        .feedback-box { background: var(--surface); border: 1px solid rgba(0,212,170,0.12); border-radius: 16px; padding: 1.8rem; margin-bottom: 1.5rem; }
+        .feedback-box h3 { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; }
+        .feedback-body { color: var(--text); font-size: 0.95rem; line-height: 1.8; }
+        .feedback-body p + p { margin-top: 0.9rem; }
+        .feedback-loading { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+        /* ── Key / chord inputs ── */
+        .input-row { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.2rem; align-items: flex-end; }
+        .field { display: flex; flex-direction: column; gap: 0.4rem; }
+        .field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .field select, .field input {
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            color: var(--text); border-radius: 8px; padding: 0.6rem 0.9rem;
+            font-size: 0.9rem; outline: none; transition: border-color 0.2s;
         }
+        .field select:focus, .field input:focus { border-color: var(--teal); }
+        .field input { width: 240px; }
+        .field input::placeholder { color: var(--muted); }
 
-        .page-subtitle {
-            color: var(--muted);
-            font-size: 0.92rem;
-            margin-bottom: 2.8rem;
+        .btn-generate {
+            background: var(--teal); color: #080c10; border: none;
+            padding: 0.65rem 1.6rem; border-radius: 100px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+            align-self: flex-end;
         }
+        .btn-generate:hover { opacity: 0.85; }
+        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Summary cards */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2.5rem;
-        }
+        /* ── Tab output (solo ideas) ── */
+        .tab-output { background: #0d1117; border: 1px solid var(--border); border-radius: 12px; padding: 1.3rem 1.5rem; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.7; color: #c9d1d9; white-space: pre; overflow-x: auto; margin-top: 1rem; }
 
-        .summary-card {
-            background: var(--surface);
-            border: 1px solid rgba(0,212,170,0.12);
-            border-radius: 16px;
-            padding: 1.5rem;
-            text-align: center;
-        }
+        /* ── Scale cards ── */
+        .scale-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .scale-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem; }
+        .scale-name { font-size: 1rem; font-weight: 700; color: var(--teal); margin-bottom: 0.4rem; }
+        .scale-why { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.7rem; }
+        .scale-notes { font-size: 0.8rem; font-family: 'Courier New', monospace; color: var(--text); background: rgba(0,212,170,0.06); border-radius: 6px; padding: 0.35rem 0.7rem; display: inline-block; }
 
-        .card-value {
-            font-size: 2rem;
-            font-weight: 900;
-            color: var(--teal);
-            line-height: 1;
-            margin-bottom: 0.4rem;
-        }
+        /* ── Empty / error states ── */
+        .state-msg { color: var(--muted); font-size: 0.9rem; font-style: italic; margin-top: 1rem; }
+        .no-data { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+        .no-data a { color: var(--teal); text-decoration: none; }
 
-        .card-label {
-            font-size: 0.78rem;
-            color: var(--muted);
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
-        .confidence-bar-wrap {
-            background: rgba(255,255,255,0.06);
-            border-radius: 100px;
-            height: 6px;
-            margin: 0.6rem auto 0;
-            width: 80%;
-            overflow: hidden;
-        }
-
-        .confidence-bar-fill {
-            height: 100%;
-            border-radius: 100px;
-            background: linear-gradient(90deg, var(--teal), #00aaff);
-            transition: width 1s ease;
-        }
-
-        /* Confidence label */
-        .confidence-label {
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.9rem;
-            margin-bottom: 2.5rem;
-        }
-
-        /* Notes table */
-        .notes-table-wrap {
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 20px;
-            overflow: hidden;
-        }
-
-        .notes-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.88rem;
-        }
-
-        .notes-table th {
-            background: rgba(0,212,170,0.08);
-            color: var(--teal);
-            font-size: 0.72rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            padding: 0.9rem 1.2rem;
-            text-align: left;
-        }
-
-        .notes-table td {
-            padding: 0.7rem 1.2rem;
-            border-top: 1px solid rgba(255,255,255,0.04);
-            color: var(--text);
-        }
-
-        .notes-table tr:hover td { background: rgba(0,212,170,0.03); }
-
-        .conf-pill {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 100px;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-
-        .conf-high   { background: rgba(0,212,170,0.15); color: var(--teal); }
-        .conf-medium { background: rgba(255,200,0,0.12); color: #ffc800; }
-        .conf-low    { background: rgba(255,107,107,0.12); color: #ff6b6b; }
-
-        /* Feedback section */
-        .feedback-section {
-            margin-bottom: 2.5rem;
-            background: var(--surface);
-            border: 1px solid rgba(0,212,170,0.12);
-            border-radius: 20px;
-            padding: 2rem 2.2rem;
-        }
-
-        .feedback-section h2 {
-            font-size: 1rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--teal);
-            margin-bottom: 1.2rem;
-        }
-
-        .feedback-text {
-            color: var(--text);
-            font-size: 0.97rem;
-            line-height: 1.8;
-        }
-
-        .feedback-text p + p { margin-top: 1rem; }
-
-        .feedback-loading {
-            color: var(--muted);
-            font-size: 0.9rem;
-            font-style: italic;
-        }
-
-        /* No data state */
-        .no-data {
-            text-align: center;
-            padding: 5rem 2rem;
-            color: var(--muted);
-        }
-
-        .no-data a {
-            color: var(--teal);
-            text-decoration: none;
-        }
-
-        @media (max-width: 768px) {
-            nav { padding: 1rem 1.5rem; }
-            .page { padding: 2rem 1.2rem 4rem; }
+        @media (max-width: 640px) {
+            nav { padding: 1rem 1.2rem; }
+            .page { padding: 1.5rem 1rem 4rem; }
+            .field input { width: 100%; }
         }
     </style>
 </head>
 <body>
 
-    <nav>
-        <a class="nav-logo" href="/">Tarra</a>
-        <a class="btn-back" href="/">Upload another</a>
-    </nav>
+<nav>
+    <a class="nav-logo" href="/">Tarra</a>
+    <a class="btn-back" href="/">Upload another</a>
+</nav>
 
-    <div class="page" id="pageContent">
+<div class="page" id="pageContent">
+    <div class="no-data"><p>Loading…</p></div>
+</div>
+
+<script>
+const raw = sessionStorage.getItem('tarra_results');
+if (!raw) {
+    document.getElementById('pageContent').innerHTML = `
         <div class="no-data">
-            <p>Loading results…</p>
+            <p>No results found. <a href="/">Upload a recording</a> to get started.</p>
+        </div>`;
+} else {
+    render(JSON.parse(raw));
+}
+
+function render(data) {
+    const s = data.summary;
+    const page = document.getElementById('pageContent');
+
+    page.innerHTML = `
+        <div class="page-header">
+            <p class="page-label">Dashboard</p>
+            <h1 class="page-title">${s.total_notes} notes detected</h1>
+            <p class="page-subtitle">${data.filename} &nbsp;·&nbsp; ${s.recording_length}s</p>
         </div>
-    </div>
 
-    <script>
-        const raw = sessionStorage.getItem('tarra_results');
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="timing">Timing</button>
+            <button class="tab-btn" data-tab="solo">Solo Ideas</button>
+            <button class="tab-btn" data-tab="scales">Scales</button>
+        </div>
 
-        if (!raw) {
-            document.getElementById('pageContent').innerHTML = `
-                <div class="no-data">
-                    <p>No results found. <a href="/">Upload a recording</a> to get started.</p>
-                </div>`;
-        } else {
-            const data = JSON.parse(raw);
-            render(data);
-        }
+        <!-- OVERVIEW -->
+        <div class="tab-panel active" id="tab-overview">
+            <div class="cards" id="summaryCards"></div>
+            <div class="chart-wrap">
+                <p class="chart-title">Accuracy over time</p>
+                <canvas id="confChart" height="90"></canvas>
+            </div>
+            <div class="feedback-box">
+                <h3>Coach Feedback</h3>
+                <p class="feedback-loading" id="feedbackText">Analysing your playing…</p>
+            </div>
+        </div>
 
-        async function loadFeedback(data) {
-            try {
-                const res = await fetch('/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ summary: data.summary, notes: data.notes })
-                });
-                const json = await res.json();
-                const el = document.getElementById('feedbackText');
-                if (json.feedback) {
-                    el.className = 'feedback-text';
-                    el.innerHTML = json.feedback
-                        .split('\n\n')
-                        .filter(p => p.trim())
-                        .map(p => `<p>${p}</p>`)
-                        .join('');
-                } else {
-                    el.textContent = 'Could not generate feedback: ' + (json.error || 'unknown error');
-                }
-            } catch (e) {
-                document.getElementById('feedbackText').textContent = 'Could not reach the server.';
+        <!-- TIMING -->
+        <div class="tab-panel" id="tab-timing">
+            <div class="chart-wrap">
+                <p class="chart-title">Notes per second throughout the recording</p>
+                <canvas id="timingChart" height="90"></canvas>
+            </div>
+        </div>
+
+        <!-- SOLO IDEAS -->
+        <div class="tab-panel" id="tab-solo">
+            <div class="input-row">
+                <div class="field">
+                    <label>Key</label>
+                    <select id="soloKey">${keyOptions()}</select>
+                </div>
+                <div class="field">
+                    <label>Major / Minor</label>
+                    <select id="soloMode">
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Chord progression (optional)</label>
+                    <input id="soloChords" type="text" placeholder="e.g. Am G F E">
+                </div>
+                <button class="btn-generate" id="soloBtn" onclick="generateSolo()">Generate</button>
+            </div>
+            <div id="soloOutput"></div>
+        </div>
+
+        <!-- SCALES -->
+        <div class="tab-panel" id="tab-scales">
+            <div class="input-row">
+                <div class="field">
+                    <label>Key</label>
+                    <select id="scaleKey">${keyOptions()}</select>
+                </div>
+                <div class="field">
+                    <label>Major / Minor</label>
+                    <select id="scaleMode">
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Chord progression (optional)</label>
+                    <input id="scaleChords" type="text" placeholder="e.g. Am G F E">
+                </div>
+                <button class="btn-generate" id="scaleBtn" onclick="generateScales()">Generate</button>
+            </div>
+            <div id="scaleOutput"></div>
+        </div>
+    `;
+
+    setupTabs();
+    buildCards(s);
+    buildConfChart(data.notes, s.recording_length);
+    buildTimingChart(data.notes, s.recording_length);
+    loadFeedback(data);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+}
+
+// ── Summary cards ──────────────────────────────────────────────────────────
+function buildCards(s) {
+    const cards = [
+        { value: s.total_notes, label: 'Notes detected' },
+        { value: s.unique_notes.length, label: 'Unique pitches' },
+        { value: s.recording_length + 's', label: 'Recording length' },
+        { value: s.avg_confidence + '%', label: 'Avg accuracy', bar: s.avg_confidence },
+    ];
+    document.getElementById('summaryCards').innerHTML = cards.map(c => `
+        <div class="card">
+            <div class="card-value">${c.value}</div>
+            <div class="card-label">${c.label}</div>
+            ${c.bar !== undefined ? `<div class="conf-bar-wrap"><div class="conf-bar-fill" style="width:${c.bar}%"></div></div>` : ''}
+        </div>`).join('');
+}
+
+// ── Confidence chart ───────────────────────────────────────────────────────
+function buildConfChart(notes, totalLen) {
+    const segSec = Math.max(5, Math.ceil(totalLen / 30));
+    const buckets = {};
+    notes.forEach(n => {
+        const bucket = Math.floor(n.start / segSec);
+        if (!buckets[bucket]) buckets[bucket] = [];
+        buckets[bucket].push(n.confidence);
+    });
+    const labels = [], vals = [];
+    const numBuckets = Math.ceil(totalLen / segSec);
+    for (let i = 0; i < numBuckets; i++) {
+        labels.push(formatTime(i * segSec));
+        const arr = buckets[i] || [];
+        vals.push(arr.length ? Math.round(arr.reduce((a, b) => a + b) / arr.length) : null);
+    }
+    new Chart(document.getElementById('confChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: vals, borderColor: '#00d4aa', backgroundColor: 'rgba(0,212,170,0.08)',
+                borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#00d4aa',
+                tension: 0.35, fill: true, spanGaps: true,
+            }]
+        },
+        options: chartOptions('Accuracy (%)', 0, 100),
+    });
+}
+
+// ── Timing chart ───────────────────────────────────────────────────────────
+function buildTimingChart(notes, totalLen) {
+    const segSec = Math.max(5, Math.ceil(totalLen / 30));
+    const counts = {};
+    notes.forEach(n => {
+        const b = Math.floor(n.start / segSec);
+        counts[b] = (counts[b] || 0) + 1;
+    });
+    const labels = [], vals = [];
+    const numBuckets = Math.ceil(totalLen / segSec);
+    for (let i = 0; i < numBuckets; i++) {
+        labels.push(formatTime(i * segSec));
+        vals.push(parseFloat(((counts[i] || 0) / segSec).toFixed(2)));
+    }
+    new Chart(document.getElementById('timingChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: vals, backgroundColor: 'rgba(0,212,170,0.25)',
+                borderColor: '#00d4aa', borderWidth: 1, borderRadius: 4,
+            }]
+        },
+        options: chartOptions('Notes / sec'),
+    });
+}
+
+function chartOptions(yLabel, yMin, yMax) {
+    return {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: 'rgba(232,234,246,0.45)', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: {
+                min: yMin, max: yMax,
+                ticks: { color: 'rgba(232,234,246,0.45)', font: { size: 11 } },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                title: { display: true, text: yLabel, color: 'rgba(232,234,246,0.45)', font: { size: 11 } }
             }
         }
+    };
+}
 
-        function render(data) {
-            const s = data.summary;
-            const page = document.getElementById('pageContent');
+function formatTime(sec) {
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}s`;
+}
 
-            const cards = [
-                { value: s.total_notes,            label: 'Notes detected' },
-                { value: s.unique_notes.length,    label: 'Unique pitches' },
-                { value: s.recording_length + 's', label: 'Recording length' },
-                { value: s.avg_confidence + '%',   label: 'Avg confidence', bar: s.avg_confidence }
-            ];
-
-            const cardsHTML = cards.map(c => `
-                <div class="summary-card">
-                    <div class="card-value">${c.value}</div>
-                    <div class="card-label">${c.label}</div>
-                    ${c.bar !== undefined ? `
-                        <div class="confidence-bar-wrap">
-                            <div class="confidence-bar-fill" style="width:${c.bar}%"></div>
-                        </div>` : ''}
-                </div>
-            `).join('');
-
-            const rowsHTML = data.notes.map((n, i) => {
-                const pillClass = n.confidence >= 70 ? 'conf-high'
-                                : n.confidence >= 40 ? 'conf-medium'
-                                : 'conf-low';
-                return `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td><strong>${n.note}</strong></td>
-                        <td>${n.start}s</td>
-                        <td>${n.end}s</td>
-                        <td>${n.duration}s</td>
-                        <td><span class="conf-pill ${pillClass}">${n.confidence}%</span></td>
-                        <td>${n.string_area}</td>
-                    </tr>`;
-            }).join('');
-
-            page.innerHTML = `
-                <p class="page-label">Your Results</p>
-                <h1 class="page-title">${s.total_notes} notes detected</h1>
-                <p class="page-subtitle">${data.filename} &nbsp;·&nbsp; ${s.recording_length}s</p>
-
-                <div class="summary-grid">${cardsHTML}</div>
-
-                <p class="confidence-label">${s.confidence_label}</p>
-
-                <div class="feedback-section" id="feedbackSection">
-                    <h2>Coach Feedback</h2>
-                    <p class="feedback-loading" id="feedbackText">Analysing your playing…</p>
-                </div>
-
-                <div class="notes-table-wrap">
-                    <table class="notes-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Note</th>
-                                <th>Start</th>
-                                <th>End</th>
-                                <th>Duration</th>
-                                <th>Confidence</th>
-                                <th>String area</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHTML}</tbody>
-                    </table>
-                </div>`;
-
-            loadFeedback(data);
+// ── Coach feedback ─────────────────────────────────────────────────────────
+async function loadFeedback(data) {
+    try {
+        const res = await fetch('/feedback', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summary: data.summary, notes: data.notes })
+        });
+        const json = await res.json();
+        const el = document.getElementById('feedbackText');
+        if (json.feedback) {
+            el.outerHTML = '<div class="feedback-body">' +
+                json.feedback.split('\n\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('') +
+                '</div>';
+        } else {
+            document.getElementById('feedbackText').textContent = 'Could not generate feedback.';
         }
-    </script>
+    } catch {
+        document.getElementById('feedbackText').textContent = 'Could not reach the server.';
+    }
+}
+
+// ── Solo ideas ─────────────────────────────────────────────────────────────
+async function generateSolo() {
+    const btn = document.getElementById('soloBtn');
+    const out = document.getElementById('soloOutput');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    out.innerHTML = '<p class="state-msg">Generating licks…</p>';
+    try {
+        const res = await fetch('/solo-ideas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: document.getElementById('soloKey').value,
+                mode: document.getElementById('soloMode').value,
+                chords: document.getElementById('soloChords').value,
+            })
+        });
+        const json = await res.json();
+        out.innerHTML = json.result
+            ? `<div class="tab-output">${escHtml(json.result)}</div>`
+            : `<p class="state-msg">${json.error || 'Something went wrong.'}</p>`;
+    } catch {
+        out.innerHTML = '<p class="state-msg">Could not reach the server.</p>';
+    }
+    btn.disabled = false; btn.textContent = 'Generate';
+}
+
+// ── Scales ─────────────────────────────────────────────────────────────────
+async function generateScales() {
+    const btn = document.getElementById('scaleBtn');
+    const out = document.getElementById('scaleOutput');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    out.innerHTML = '<p class="state-msg">Fetching scales…</p>';
+    try {
+        const res = await fetch('/scales', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: document.getElementById('scaleKey').value,
+                mode: document.getElementById('scaleMode').value,
+                chords: document.getElementById('scaleChords').value,
+            })
+        });
+        const json = await res.json();
+        if (json.scales) {
+            out.innerHTML = '<div class="scale-grid">' +
+                json.scales.map(sc => `
+                    <div class="scale-card">
+                        <div class="scale-name">${escHtml(sc.name)}</div>
+                        <div class="scale-why">${escHtml(sc.why)}</div>
+                        <div class="scale-notes">${escHtml(sc.notes)}</div>
+                    </div>`).join('') +
+                '</div>';
+        } else {
+            out.innerHTML = `<p class="state-msg">${json.error || 'Something went wrong.'}</p>`;
+        }
+    } catch {
+        out.innerHTML = '<p class="state-msg">Could not reach the server.</p>';
+    }
+    btn.disabled = false; btn.textContent = 'Generate';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function keyOptions() {
+    return ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+        .map(k => `<option value="${k}"${k==='A'?' selected':''}>${k}</option>`).join('');
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
 </body>
 </html>
