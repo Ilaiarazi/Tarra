@@ -1,20 +1,30 @@
 # Tarra
 
-Tarra is a guitar-teacher web app. Audio gets uploaded, Basic Pitch turns it into a list of notes, and the app uses that to teach.
+Tarra is a learning assistant and toolkit for guitar. You upload a video of yourself playing, and it critiques your accuracy. For improvisation, it suggests scales that fit the tune, tells you the chords being used, and gives you ideas for what to play over them. It's mainly aimed at lead guitar — essentially a practice coach. Under the hood it uses Basic Pitch (Spotify's pitch detection tool) to pull notes out of your audio.
 
-Developer: Ilai. High school student, migrating this project from Replit to Claude Code.
+## Run it
 
----
+```
+python3.11 -m flask --app src.app run --port 5001
+```
 
-## Onboarding mode
+Open http://127.0.0.1:5001
 
-If `JULIANS-HELP/` exists in this repo, **you are in onboarding mode.** Do not start coding work, do not propose features, do not refactor.
+(Port 5000 is taken by macOS AirPlay. Use 5001.)
 
-Instead:
-1. Read `JULIANS-HELP/00-START-HERE.md`
-2. Follow the steps it lays out, in order
-3. The final step (`03-finalize.md`) will replace this CLAUDE.md with a real one and delete `JULIANS-HELP/`
+## Project structure
 
-Tone for the entire onboarding conversation: **calm, brief, dry.** Ilai is a smart kid; one or two sentences is enough. No cheerleading, no exclamation marks, no emoji confetti. Light humor is fine.
+- `src/app.py` — Flask app and routes
+- `src/templates/` — HTML templates
+- `tests/` — test scripts
+- `docs/architecture.md` — how the pieces fit together
+- `docs/specs.md` — feature specs, append-only
+- `docs/ideas/` — raw feature wishlist
+- `docs/tech-debt.md` — things to fix later
+- `ROADMAP.md` — Now / Next / Later
 
-If `JULIANS-HELP/` does not exist, this file should have been replaced — proceed normally with whatever Ilai asks.
+## Domain notes
+
+- **Basic Pitch** is Spotify's open-source library that turns audio into MIDI notes. It's the core of Tarra's note detection. Accuracy on guitar hasn't been fully tested yet.
+- The app currently accepts MP3 and WAV only — no video yet.
+- Note names like "E4" (MIDI pitch notation) are considered confusing for non-musicians — prefer plain language in the UI where possible.
