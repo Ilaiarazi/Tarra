@@ -1,6 +1,6 @@
 # Tarra
 
-Guitar-teacher web app. Upload a recording, get back the notes that were played.
+Tarra is a learning assistant and toolkit for guitar. You upload a video of yourself playing, and it critiques your accuracy. For improvisation, it suggests scales that fit the tune, tells you the chords being used, and gives you ideas for what to play over them. It's mainly aimed at lead guitar — essentially a practice coach. Under the hood it uses Basic Pitch (Spotify's pitch detection tool) to pull notes out of your audio.
 
 ## Run it
 
