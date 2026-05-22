@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tarra — Guitar Feedback AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
     <style>
@@ -96,11 +97,16 @@
         }
 
         .nav-logo {
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: var(--teal);
-            letter-spacing: 0.08em;
+            font-family: 'Metal Mania', cursive;
+            font-size: 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, var(--teal) 50%, #007a66 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             text-decoration: none;
+            letter-spacing: 0.05em;
+            text-shadow: none;
+            filter: drop-shadow(0 0 8px rgba(0,212,170,0.5));
         }
 
         .nav-links {

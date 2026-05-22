@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tarra — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,17 +27,86 @@
             background: rgba(8,12,16,0.85);
             border-bottom: 1px solid rgba(0,212,170,0.08);
         }
-        .nav-logo { font-size: 1.5rem; font-weight: 900; color: var(--teal); text-decoration: none; letter-spacing: 0.08em; }
+        .nav-logo {
+            font-family: 'Metal Mania', cursive;
+            font-size: 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, var(--teal) 50%, #007a66 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            filter: drop-shadow(0 0 8px rgba(0,212,170,0.5));
+        }
         .btn-back { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
         .btn-back:hover { border-color: var(--teal); color: var(--teal); }
 
         /* ── Page ── */
         .page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
 
-        .page-header { margin-bottom: 2rem; }
-        .page-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); margin-bottom: 0.4rem; }
-        .page-title { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 900; letter-spacing: -0.02em; }
-        .page-subtitle { color: var(--muted); font-size: 0.88rem; margin-top: 0.3rem; }
+        .page-header {
+            margin-bottom: 2.5rem;
+            padding: 2rem 2.2rem;
+            background: linear-gradient(135deg, rgba(0,212,170,0.05) 0%, rgba(0,170,255,0.03) 100%);
+            border: 1px solid rgba(0,212,170,0.14);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,212,170,0.6), transparent);
+        }
+        .header-status {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--teal);
+            margin-bottom: 1rem;
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--teal);
+            box-shadow: 0 0 8px var(--teal);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .page-title {
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 0.8rem;
+            background: linear-gradient(135deg, #ffffff 0%, var(--teal) 60%, #00aaff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .page-title .count {
+            font-variant-numeric: tabular-nums;
+        }
+        .file-chip {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.35rem 0.8rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .file-chip-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+        .header-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .meta-divider { color: var(--border); }
+        .meta-duration {
+            font-size: 0.78rem; color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
 
         /* ── Tabs ── */
         .tab-bar {
@@ -147,9 +217,18 @@ function render(data) {
 
     page.innerHTML = `
         <div class="page-header">
-            <p class="page-label">Dashboard</p>
-            <h1 class="page-title">${s.total_notes} notes detected</h1>
-            <p class="page-subtitle">${data.filename} &nbsp;·&nbsp; ${s.recording_length}s</p>
+            <div class="header-status">
+                <span class="status-dot"></span>
+                Analysis complete
+            </div>
+            <h1 class="page-title"><span class="count">${s.total_notes.toLocaleString()}</span> notes detected</h1>
+            <div class="header-meta">
+                <div class="file-chip">
+                    <span class="file-chip-dot"></span>
+                    ${data.filename}
+                </div>
+                <span class="meta-duration">${s.recording_length}s &nbsp;·&nbsp; ${s.notes_per_second} notes/sec</span>
+            </div>
         </div>
 
         <div class="tab-bar">
