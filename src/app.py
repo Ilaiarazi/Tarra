@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
+import anthropic
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
@@ -61,6 +65,49 @@ def guitar_string_area(midi_number):
 @app.route('/')
 def home():
     return render_template('index.html')
+
+
+@app.route('/results')
+def results():
+    return render_template('results.html')
+
+
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    s = data.get('summary', {})
+    notes = data.get('notes', [])
+    unique_notes = s.get('unique_notes', [])
+
+    prompt = f"""You are a guitar coach reviewing someone's playing. Here is the note detection data from their recording:
+
+- Recording length: {s.get('recording_length')} seconds
+- Total notes detected: {s.get('total_notes')}
+- Notes per second: {s.get('notes_per_second')} (playing density)
+- Average detection confidence: {s.get('avg_confidence')}% ({s.get('confidence_label', '').split(' — ')[0]})
+- Unique pitches used: {', '.join(unique_notes)} ({len(unique_notes)} distinct notes)
+
+Based on this data, write 3–4 short paragraphs of plain-English coaching feedback. Cover:
+1. What the notes suggest about the key or scale being used
+2. What the playing density and confidence say about their technique
+3. One or two specific things to work on
+4. One encouraging observation
+
+Write directly to the player. Keep it conversational — no jargon, no note names like "E4". Imagine you're a guitar teacher talking to a student after their session."""
+
+    try:
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return jsonify({'feedback': message.content[0].text})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/upload', methods=['POST'])

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarra — Your Results</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --teal: #00d4aa;
+            --teal-dim: rgba(0, 212, 170, 0.3);
+            --bg: #080c10;
+            --surface: rgba(255, 255, 255, 0.04);
+            --text: #e8eaf6;
+            --muted: rgba(232, 234, 246, 0.55);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.1rem 3rem;
+            background: rgba(8, 12, 16, 0.85);
+            border-bottom: 1px solid rgba(0, 212, 170, 0.08);
+        }
+
+        .nav-logo {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--teal);
+            letter-spacing: 0.08em;
+            text-decoration: none;
+        }
+
+        .btn-back {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid rgba(255,255,255,0.14);
+            padding: 0.55rem 1.4rem;
+            border-radius: 100px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .btn-back:hover { border-color: var(--teal); color: var(--teal); }
+
+        .page {
+            max-width: 940px;
+            margin: 0 auto;
+            padding: 3.5rem 2rem 6rem;
+        }
+
+        .page-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 0.6rem;
+        }
+
+        .page-title {
+            font-size: clamp(1.7rem, 4vw, 2.6rem);
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            margin-bottom: 0.4rem;
+        }
+
+        .page-subtitle {
+            color: var(--muted);
+            font-size: 0.92rem;
+            margin-bottom: 2.8rem;
+        }
+
+        /* Summary cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid rgba(0,212,170,0.12);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--teal);
+            line-height: 1;
+            margin-bottom: 0.4rem;
+        }
+
+        .card-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .confidence-bar-wrap {
+            background: rgba(255,255,255,0.06);
+            border-radius: 100px;
+            height: 6px;
+            margin: 0.6rem auto 0;
+            width: 80%;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--teal), #00aaff);
+            transition: width 1s ease;
+        }
+
+        /* Confidence label */
+        .confidence-label {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* Notes table */
+        .notes-table-wrap {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .notes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        .notes-table th {
+            background: rgba(0,212,170,0.08);
+            color: var(--teal);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.9rem 1.2rem;
+            text-align: left;
+        }
+
+        .notes-table td {
+            padding: 0.7rem 1.2rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            color: var(--text);
+        }
+
+        .notes-table tr:hover td { background: rgba(0,212,170,0.03); }
+
+        .conf-pill {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .conf-high   { background: rgba(0,212,170,0.15); color: var(--teal); }
+        .conf-medium { background: rgba(255,200,0,0.12); color: #ffc800; }
+        .conf-low    { background: rgba(255,107,107,0.12); color: #ff6b6b; }
+
+        /* Feedback section */
+        .feedback-section {
+            margin-bottom: 2.5rem;
+            background: var(--surface);
+            border: 1px solid rgba(0,212,170,0.12);
+            border-radius: 20px;
+            padding: 2rem 2.2rem;
+        }
+
+        .feedback-section h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 1.2rem;
+        }
+
+        .feedback-text {
+            color: var(--text);
+            font-size: 0.97rem;
+            line-height: 1.8;
+        }
+
+        .feedback-text p + p { margin-top: 1rem; }
+
+        .feedback-loading {
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        /* No data state */
+        .no-data {
+            text-align: center;
+            padding: 5rem 2rem;
+            color: var(--muted);
+        }
+
+        .no-data a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 1rem 1.5rem; }
+            .page { padding: 2rem 1.2rem 4rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a class="nav-logo" href="/">Tarra</a>
+        <a class="btn-back" href="/">Upload another</a>
+    </nav>
+
+    <div class="page" id="pageContent">
+        <div class="no-data">
+            <p>Loading results…</p>
+        </div>
+    </div>
+
+    <script>
+        const raw = sessionStorage.getItem('tarra_results');
+
+        if (!raw) {
+            document.getElementById('pageContent').innerHTML = `
+                <div class="no-data">
+                    <p>No results found. <a href="/">Upload a recording</a> to get started.</p>
+                </div>`;
+        } else {
+            const data = JSON.parse(raw);
+            render(data);
+        }
+
+        async function loadFeedback(data) {
+            try {
+                const res = await fetch('/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ summary: data.summary, notes: data.notes })
+                });
+                const json = await res.json();
+                const el = document.getElementById('feedbackText');
+                if (json.feedback) {
+                    el.className = 'feedback-text';
+                    el.innerHTML = json.feedback
+                        .split('\n\n')
+                        .filter(p => p.trim())
+                        .map(p => `<p>${p}</p>`)
+                        .join('');
+                } else {
+                    el.textContent = 'Could not generate feedback: ' + (json.error || 'unknown error');
+                }
+            } catch (e) {
+                document.getElementById('feedbackText').textContent = 'Could not reach the server.';
+            }
+        }
+
+        function render(data) {
+            const s = data.summary;
+            const page = document.getElementById('pageContent');
+
+            const cards = [
+                { value: s.total_notes,            label: 'Notes detected' },
+                { value: s.unique_notes.length,    label: 'Unique pitches' },
+                { value: s.recording_length + 's', label: 'Recording length' },
+                { value: s.avg_confidence + '%',   label: 'Avg confidence', bar: s.avg_confidence }
+            ];
+
+            const cardsHTML = cards.map(c => `
+                <div class="summary-card">
+                    <div class="card-value">${c.value}</div>
+                    <div class="card-label">${c.label}</div>
+                    ${c.bar !== undefined ? `
+                        <div class="confidence-bar-wrap">
+                            <div class="confidence-bar-fill" style="width:${c.bar}%"></div>
+                        </div>` : ''}
+                </div>
+            `).join('');
+
+            const rowsHTML = data.notes.map((n, i) => {
+                const pillClass = n.confidence >= 70 ? 'conf-high'
+                                : n.confidence >= 40 ? 'conf-medium'
+                                : 'conf-low';
+                return `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td><strong>${n.note}</strong></td>
+                        <td>${n.start}s</td>
+                        <td>${n.end}s</td>
+                        <td>${n.duration}s</td>
+                        <td><span class="conf-pill ${pillClass}">${n.confidence}%</span></td>
+                        <td>${n.string_area}</td>
+                    </tr>`;
+            }).join('');
+
+            page.innerHTML = `
+                <p class="page-label">Your Results</p>
+                <h1 class="page-title">${s.total_notes} notes detected</h1>
+                <p class="page-subtitle">${data.filename} &nbsp;·&nbsp; ${s.recording_length}s</p>
+
+                <div class="summary-grid">${cardsHTML}</div>
+
+                <p class="confidence-label">${s.confidence_label}</p>
+
+                <div class="feedback-section" id="feedbackSection">
+                    <h2>Coach Feedback</h2>
+                    <p class="feedback-loading" id="feedbackText">Analysing your playing…</p>
+                </div>
+
+                <div class="notes-table-wrap">
+                    <table class="notes-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Note</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Duration</th>
+                                <th>Confidence</th>
+                                <th>String area</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHTML}</tbody>
+                    </table>
+                </div>`;
+
+            loadFeedback(data);
+        }
+    </script>
+</body>
+</html>

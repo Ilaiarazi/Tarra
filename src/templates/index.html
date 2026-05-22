@@ -821,9 +821,10 @@
                     uploadStatus.style.color = 'var(--teal)';
                     analyseBtn.textContent   = '✅ Done!';
 
-                    // Show the results section if we got notes back.
+                    // Store results and redirect to the dashboard page.
                     if (data.notes && data.notes.length > 0) {
-                        showResults(data);
+                        sessionStorage.setItem('tarra_results', JSON.stringify(data));
+                        window.location.href = '/results';
                     }
                 } else {
                     uploadStatus.textContent = '⚠️  ' + (data.error || 'Something went wrong.');
