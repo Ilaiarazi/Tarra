@@ -827,18 +827,20 @@
                         window.location.href = '/results';
                     }
                 } else {
-                    uploadStatus.textContent = '⚠️  ' + (data.error || 'Something went wrong.');
-                    uploadStatus.style.color = '#ff6b6b';
+                    const msg = data.error || 'Something went wrong.';
+                    uploadError.textContent   = msg;
+                    uploadError.style.display = 'block';
+                    uploadStatus.style.display = 'none';
                     analyseBtn.disabled    = false;
-                    analyseBtn.textContent = 'Analyse My Playing';
+                    analyseBtn.textContent = 'Try Again';
                 }
 
             } catch (err) {
-                // This runs if the network request failed entirely.
-                uploadStatus.textContent = '⚠️  Could not reach the server. Please try again.';
-                uploadStatus.style.color = '#ff6b6b';
+                uploadError.textContent   = 'Could not reach the server. Please try again.';
+                uploadError.style.display = 'block';
+                uploadStatus.style.display = 'none';
                 analyseBtn.disabled    = false;
-                analyseBtn.textContent = 'Analyse My Playing';
+                analyseBtn.textContent = 'Try Again';
             }
         }
 

@@ -190,12 +190,10 @@ def upload_file():
         total = len(notes_list)
 
         if total == 0:
+            os.remove(save_path)
             return jsonify({
-                'success': True,
-                'filename': safe_name,
-                'message': 'No notes detected. Try a clearer recording with less background noise.',
-                'notes': [],
-                'summary': {}
+                'success': False,
+                'error': 'No notes detected. Try a clearer recording with less background noise, or make sure your guitar is audible in the recording.',
             })
 
         unique_notes    = sorted(set(n['note'] for n in notes_list))
@@ -222,6 +220,7 @@ def upload_file():
             'notes_per_second':   notes_per_second
         }
 
+        os.remove(save_path)
         return jsonify({
             'success':  True,
             'filename': safe_name,
@@ -231,12 +230,11 @@ def upload_file():
         })
 
     except Exception as e:
-        # Something went wrong during analysis (e.g. corrupted file, unsupported codec).
-        # We still return 200 (not an error code) because the file was saved successfully.
+        if os.path.exists(save_path):
+            os.remove(save_path)
         return jsonify({
-            'success':      False,
-            'filename':     safe_name,
-            'error':        f'Analysis failed: {str(e)}',
+            'success': False,
+            'error':   'Analysis failed — the file may be corrupted or in an unsupported format. Try converting to MP3 or WAV and uploading again.',
         }), 500
 
 
