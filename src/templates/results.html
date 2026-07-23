@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarra — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --teal: #00d4aa;
+            --bg: #080c10;
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.07);
+            --text: #e8eaf6;
+            --muted: rgba(232,234,246,0.55);
+        }
+
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+        /* ── Nav ── */
+        nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 2.5rem;
+            background: rgba(8,12,16,0.85);
+            border-bottom: 1px solid rgba(0,212,170,0.08);
+        }
+        .nav-logo {
+            font-family: 'Metal Mania', cursive;
+            font-size: 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, var(--teal) 50%, #007a66 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            filter: drop-shadow(0 0 8px rgba(0,212,170,0.5));
+        }
+        .btn-back { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+        .btn-back:hover { border-color: var(--teal); color: var(--teal); }
+        .nav-actions { display: flex; align-items: center; gap: 1.3rem; }
+        .nav-actions a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; transition: color 0.2s; }
+        .nav-actions a:hover { color: var(--teal); }
+        .nav-actions a.btn-back { color: var(--muted); }
+        .nav-actions a.btn-back:hover { color: var(--teal); }
+        .nav-user { color: var(--teal); font-size: 0.85rem; }
+
+        /* ── Page ── */
+        .page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
+
+        .page-header {
+            margin-bottom: 2.5rem;
+            padding: 2rem 2.2rem;
+            background: linear-gradient(135deg, rgba(0,212,170,0.05) 0%, rgba(0,170,255,0.03) 100%);
+            border: 1px solid rgba(0,212,170,0.14);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,212,170,0.6), transparent);
+        }
+        .header-status {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--teal);
+            margin-bottom: 1rem;
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--teal);
+            box-shadow: 0 0 8px var(--teal);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .page-title {
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 0.8rem;
+            background: linear-gradient(135deg, #ffffff 0%, var(--teal) 60%, #00aaff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .page-title .count {
+            font-variant-numeric: tabular-nums;
+        }
+        .file-chip {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.35rem 0.8rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .file-chip-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+        .header-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .meta-divider { color: var(--border); }
+        .meta-duration {
+            font-size: 0.78rem; color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Tabs ── */
+        .tab-bar {
+            display: flex; gap: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        .tab-btn {
+            background: transparent; border: none; color: var(--muted);
+            padding: 0.75rem 1.3rem; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; border-bottom: 2px solid transparent;
+            margin-bottom: -1px; transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Summary Cards ── */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .card { background: var(--surface); border: 1px solid rgba(0,212,170,0.12); border-radius: 14px; padding: 1.3rem; text-align: center; }
+        .card-value { font-size: 1.9rem; font-weight: 900; color: var(--teal); line-height: 1; margin-bottom: 0.35rem; }
+        .card-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+        .conf-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 100px; height: 5px; margin: 0.5rem auto 0; width: 75%; overflow: hidden; }
+        .conf-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--teal), #00aaff); transition: width 1s ease; }
+
+        /* ── Chart container ── */
+        .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; }
+
+        /* ── Feedback box ── */
+        .feedback-box { background: var(--surface); border: 1px solid rgba(0,212,170,0.12); border-radius: 16px; padding: 1.8rem; margin-bottom: 1.5rem; }
+        .feedback-box h3 { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; }
+        .feedback-body { color: var(--text); font-size: 0.95rem; line-height: 1.8; }
+        .feedback-body p + p { margin-top: 0.9rem; }
+        .feedback-loading { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+        /* ── Key / chord inputs ── */
+        .input-row { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.2rem; align-items: flex-end; }
+        .field { display: flex; flex-direction: column; gap: 0.4rem; }
+        .field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .field select, .field input {
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            color: var(--text); border-radius: 8px; padding: 0.6rem 0.9rem;
+            font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+        }
+        .field select:focus, .field input:focus { border-color: var(--teal); }
+        .field input { width: 240px; }
+        .field input::placeholder { color: var(--muted); }
+
+        .btn-generate {
+            background: var(--teal); color: #080c10; border: none;
+            padding: 0.65rem 1.6rem; border-radius: 100px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+            align-self: flex-end;
+        }
+        .btn-generate:hover { opacity: 0.85; }
+        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Tab output (solo ideas) ── */
+        .tab-output { background: #0d1117; border: 1px solid var(--border); border-radius: 12px; padding: 1.3rem 1.5rem; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.7; color: #c9d1d9; white-space: pre; overflow-x: auto; margin-top: 1rem; }
+
+        /* ── Scale cards ── */
+        .scale-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .scale-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem; }
+        .scale-name { font-size: 1rem; font-weight: 700; color: var(--teal); margin-bottom: 0.4rem; }
+        .scale-why { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.7rem; }
+        .scale-notes { font-size: 0.8rem; font-family: 'Courier New', monospace; color: var(--text); background: rgba(0,212,170,0.06); border-radius: 6px; padding: 0.35rem 0.7rem; display: inline-block; }
+
+        /* ── Empty / error states ── */
+        .state-msg { color: var(--muted); font-size: 0.9rem; font-style: italic; margin-top: 1rem; }
+        .no-data { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+        .no-data a { color: var(--teal); text-decoration: none; }
+
+        /* ── Chord Charts ── */
+        .chord-intro { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .chord-input-row { display: flex; gap: 0.75rem; max-width: 620px; margin-bottom: 2rem; }
+        .chord-input {
+            flex: 1;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            color: var(--text); border-radius: 8px; padding: 0.65rem 1rem;
+            font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .chord-input:focus { border-color: var(--teal); }
+        .chord-input::placeholder { color: var(--muted); }
+        .chord-output { display: flex; flex-direction: column; gap: 2.2rem; }
+        .chord-group {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.8rem;
+            opacity: 0; transform: translateY(12px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .chord-group-label { font-size: 1.1rem; font-weight: 800; color: var(--teal); letter-spacing: 0.04em; }
+        .chord-voicings { display: flex; flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
+        .chord-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 0.9rem 0.7rem 0.6rem;
+            display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+            transition: border-color 0.2s;
+        }
+        .chord-card:hover { border-color: rgba(0,212,170,0.28); }
+        .chord-not-found { color: var(--muted); font-size: 0.85rem; font-style: italic; padding: 0.8rem; }
+
+        @media (max-width: 640px) {
+            nav { padding: 1rem 1.2rem; }
+            .page { padding: 1.5rem 1rem 4rem; }
+            .field input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a class="nav-logo" href="/">Tarra</a>
+    <div class="nav-actions">
+        {% if user %}
+            <span class="nav-user">{{ user.username }}</span>
+            <a href="/history">History</a>
+            <a href="/logout">Log out</a>
+        {% else %}
+            <a href="/login">Log in</a>
+        {% endif %}
+        <a class="btn-back" href="/">Upload another</a>
+    </div>
+</nav>
+
+<div class="page" id="pageContent">
+    <div class="no-data"><p>Loading…</p></div>
+</div>
+
+<script>
+// Two ways to land here:
+//   1. Fresh analysis — data was stashed in sessionStorage by the upload page.
+//   2. Saved analysis (/analysis/<id>) — Flask injects the row as saved_data.
+// A saved analysis wins when present; otherwise fall back to sessionStorage.
+{% if saved_data %}
+const DATA = {{ saved_data | tojson }};
+{% else %}
+const stored = sessionStorage.getItem('tarra_results');
+const DATA = stored ? JSON.parse(stored) : null;
+{% endif %}
+
+if (!DATA) {
+    document.getElementById('pageContent').innerHTML = `
+        <div class="no-data">
+            <p>No results found. <a href="/">Upload a recording</a> to get started.</p>
+        </div>`;
+} else {
+    render(DATA);
+}
+
+function render(data) {
+    const s = data.summary;
+    const page = document.getElementById('pageContent');
+
+    page.innerHTML = `
+        <div class="page-header">
+            <div class="header-status">
+                <span class="status-dot"></span>
+                Analysis complete
+            </div>
+            <h1 class="page-title"><span class="count">${s.total_notes.toLocaleString()}</span> notes detected</h1>
+            <div class="header-meta">
+                <div class="file-chip">
+                    <span class="file-chip-dot"></span>
+                    ${data.filename}
+                </div>
+                <span class="meta-duration">${s.recording_length}s &nbsp;·&nbsp; ${s.notes_per_second} notes/sec</span>
+            </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="timing">Timing</button>
+            <button class="tab-btn" data-tab="solo">Solo Ideas</button>
+            <button class="tab-btn" data-tab="scales">Scales</button>
+            <button class="tab-btn" data-tab="chords">Chords</button>
+        </div>
+
+        <!-- OVERVIEW -->
+        <div class="tab-panel active" id="tab-overview">
+            <div class="cards" id="summaryCards"></div>
+            <div class="chart-wrap">
+                <p class="chart-title">Accuracy over time</p>
+                <canvas id="confChart" height="90"></canvas>
+            </div>
+            <div class="feedback-box">
+                <h3>Coach Feedback</h3>
+                <p class="feedback-loading" id="feedbackText">Analysing your playing…</p>
+            </div>
+        </div>
+
+        <!-- TIMING -->
+        <div class="tab-panel" id="tab-timing">
+            <div class="chart-wrap">
+                <p class="chart-title">Notes per second throughout the recording</p>
+                <canvas id="timingChart" height="90"></canvas>
+            </div>
+        </div>
+
+        <!-- SOLO IDEAS -->
+        <div class="tab-panel" id="tab-solo">
+            <div class="input-row">
+                <div class="field">
+                    <label>Key</label>
+                    <select id="soloKey">${keyOptions()}</select>
+                </div>
+                <div class="field">
+                    <label>Major / Minor</label>
+                    <select id="soloMode">
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Chord progression (optional)</label>
+                    <input id="soloChords" type="text" placeholder="e.g. Am G F E">
+                </div>
+                <button class="btn-generate" id="soloBtn" onclick="generateSolo()">Generate</button>
+            </div>
+            <div id="soloOutput"></div>
+        </div>
+
+        <!-- SCALES -->
+        <div class="tab-panel" id="tab-scales">
+            <div class="input-row">
+                <div class="field">
+                    <label>Key</label>
+                    <select id="scaleKey">${keyOptions()}</select>
+                </div>
+                <div class="field">
+                    <label>Major / Minor</label>
+                    <select id="scaleMode">
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Chord progression (optional)</label>
+                    <input id="scaleChords" type="text" placeholder="e.g. Am G F E">
+                </div>
+                <button class="btn-generate" id="scaleBtn" onclick="generateScales()">Generate</button>
+            </div>
+            <div id="scaleOutput"></div>
+        </div>
+
+        <!-- CHORDS -->
+        <div class="tab-panel" id="tab-chords">
+            <p class="chord-intro">Type a chord progression to see every common way to play each chord, from open position up the neck.</p>
+            <div class="chord-input-row">
+                <input type="text" id="chordInput" class="chord-input"
+                       placeholder="e.g.  Am  F  C  G"
+                       autocomplete="off" spellcheck="false">
+                <button class="btn-generate" id="chordGenBtn">Generate</button>
+            </div>
+            <div class="chord-output" id="chordOutput"></div>
+        </div>
+    `;
+
+    setupTabs();
+    setupChords();
+    buildCards(s);
+    buildConfChart(data.notes, s.recording_length);
+    buildTimingChart(data.notes, s.recording_length);
+    loadFeedback(data);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+}
+
+// ── Summary cards ──────────────────────────────────────────────────────────
+function buildCards(s) {
+    const cards = [
+        { value: s.total_notes, label: 'Notes detected' },
+        { value: s.unique_notes.length, label: 'Unique pitches' },
+        { value: s.recording_length + 's', label: 'Recording length' },
+        { value: s.avg_confidence + '%', label: 'Avg accuracy', bar: s.avg_confidence },
+    ];
+    document.getElementById('summaryCards').innerHTML = cards.map(c => `
+        <div class="card">
+            <div class="card-value">${c.value}</div>
+            <div class="card-label">${c.label}</div>
+            ${c.bar !== undefined ? `<div class="conf-bar-wrap"><div class="conf-bar-fill" style="width:${c.bar}%"></div></div>` : ''}
+        </div>`).join('');
+}
+
+// ── Confidence chart ───────────────────────────────────────────────────────
+function buildConfChart(notes, totalLen) {
+    const segSec = Math.max(5, Math.ceil(totalLen / 30));
+    const buckets = {};
+    notes.forEach(n => {
+        const bucket = Math.floor(n.start / segSec);
+        if (!buckets[bucket]) buckets[bucket] = [];
+        buckets[bucket].push(n.confidence);
+    });
+    const labels = [], vals = [];
+    const numBuckets = Math.ceil(totalLen / segSec);
+    for (let i = 0; i < numBuckets; i++) {
+        labels.push(formatTime(i * segSec));
+        const arr = buckets[i] || [];
+        vals.push(arr.length ? Math.round(arr.reduce((a, b) => a + b) / arr.length) : null);
+    }
+    new Chart(document.getElementById('confChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: vals, borderColor: '#00d4aa', backgroundColor: 'rgba(0,212,170,0.08)',
+                borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#00d4aa',
+                tension: 0.35, fill: true, spanGaps: true,
+            }]
+        },
+        options: chartOptions('Accuracy (%)', 0, 100),
+    });
+}
+
+// ── Timing chart ───────────────────────────────────────────────────────────
+function buildTimingChart(notes, totalLen) {
+    const segSec = Math.max(5, Math.ceil(totalLen / 30));
+    const counts = {};
+    notes.forEach(n => {
+        const b = Math.floor(n.start / segSec);
+        counts[b] = (counts[b] || 0) + 1;
+    });
+    const labels = [], vals = [];
+    const numBuckets = Math.ceil(totalLen / segSec);
+    for (let i = 0; i < numBuckets; i++) {
+        labels.push(formatTime(i * segSec));
+        vals.push(parseFloat(((counts[i] || 0) / segSec).toFixed(2)));
+    }
+    new Chart(document.getElementById('timingChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: vals, backgroundColor: 'rgba(0,212,170,0.25)',
+                borderColor: '#00d4aa', borderWidth: 1, borderRadius: 4,
+            }]
+        },
+        options: chartOptions('Notes / sec'),
+    });
+}
+
+function chartOptions(yLabel, yMin, yMax) {
+    return {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: 'rgba(232,234,246,0.45)', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: {
+                min: yMin, max: yMax,
+                ticks: { color: 'rgba(232,234,246,0.45)', font: { size: 11 } },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                title: { display: true, text: yLabel, color: 'rgba(232,234,246,0.45)', font: { size: 11 } }
+            }
+        }
+    };
+}
+
+function formatTime(sec) {
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}s`;
+}
+
+// ── Coach feedback ─────────────────────────────────────────────────────────
+async function loadFeedback(data) {
+    try {
+        const res = await fetch('/feedback', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summary: data.summary, notes: data.notes })
+        });
+        const json = await res.json();
+        const el = document.getElementById('feedbackText');
+        if (json.feedback) {
+            el.outerHTML = '<div class="feedback-body">' +
+                json.feedback.split('\n\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('') +
+                '</div>';
+        } else {
+            document.getElementById('feedbackText').textContent = 'Could not generate feedback.';
+        }
+    } catch {
+        document.getElementById('feedbackText').textContent = 'Could not reach the server.';
+    }
+}
+
+// ── Solo ideas ─────────────────────────────────────────────────────────────
+async function generateSolo() {
+    const btn = document.getElementById('soloBtn');
+    const out = document.getElementById('soloOutput');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    out.innerHTML = '<p class="state-msg">Generating licks…</p>';
+    try {
+        const res = await fetch('/solo-ideas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: document.getElementById('soloKey').value,
+                mode: document.getElementById('soloMode').value,
+                chords: document.getElementById('soloChords').value,
+            })
+        });
+        const json = await res.json();
+        out.innerHTML = json.result
+            ? `<div class="tab-output">${escHtml(json.result)}</div>`
+            : `<p class="state-msg">${json.error || 'Something went wrong.'}</p>`;
+    } catch {
+        out.innerHTML = '<p class="state-msg">Could not reach the server.</p>';
+    }
+    btn.disabled = false; btn.textContent = 'Generate';
+}
+
+// ── Scales ─────────────────────────────────────────────────────────────────
+async function generateScales() {
+    const btn = document.getElementById('scaleBtn');
+    const out = document.getElementById('scaleOutput');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    out.innerHTML = '<p class="state-msg">Fetching scales…</p>';
+    try {
+        const res = await fetch('/scales', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: document.getElementById('scaleKey').value,
+                mode: document.getElementById('scaleMode').value,
+                chords: document.getElementById('scaleChords').value,
+            })
+        });
+        const json = await res.json();
+        if (json.scales) {
+            out.innerHTML = '<div class="scale-grid">' +
+                json.scales.map(sc => `
+                    <div class="scale-card">
+                        <div class="scale-name">${escHtml(sc.name)}</div>
+                        <div class="scale-why">${escHtml(sc.why)}</div>
+                        <div class="scale-notes">${escHtml(sc.notes)}</div>
+                    </div>`).join('') +
+                '</div>';
+        } else {
+            out.innerHTML = `<p class="state-msg">${json.error || 'Something went wrong.'}</p>`;
+        }
+    } catch {
+        out.innerHTML = '<p class="state-msg">Could not reach the server.</p>';
+    }
+    btn.disabled = false; btn.textContent = 'Generate';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function keyOptions() {
+    return ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+        .map(k => `<option value="${k}"${k==='A'?' selected':''}>${k}</option>`).join('');
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Chord Charts ──────────────────────────────────────────────────────────
+function setupChords() {
+    // Note name → semitone index (C = 0 … B = 11).
+    const NOTE_IDX = {
+        'C':0, 'B#':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3, 'E':4, 'Fb':4,
+        'E#':5, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8, 'A':9, 'A#':10,
+        'Bb':10, 'B':11, 'Cb':11,
+    };
+    // Open-string note of each string a shape can be rooted on (6=low E, 5=A, 4=D).
+    const OPEN_IDX = { 6:4, 5:9, 4:2 };
+    const MAX_FRET = 14;
+
+    // Movable shapes per chord type. `rel` frets are relative to the anchor
+    // (lowest fretted) fret, -1 = muted. A shape slides up the neck so its
+    // root lands on the requested note: anchor = root fret − rootRel.
+    // Strings listed low E → high E.
+    const SHAPES = {
+        '': [ // major — the five CAGED forms + a compact top-string form
+            { rel:[0,2,2,1,0,0],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,0,2,2,2,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,3,2,0,1,0],   root:5, rootRel:3, name:'C shape' },
+            { rel:[3,2,0,0,0,3],    root:6, rootRel:3, name:'G shape' },
+            { rel:[-1,-1,0,2,3,2],  root:4, rootRel:0, name:'D shape' },
+            { rel:[-1,-1,2,1,0,0],  root:4, rootRel:2, name:'compact' },
+        ],
+        'm': [
+            { rel:[0,2,2,0,0,0],    root:6, rootRel:0, name:'Em shape' },
+            { rel:[-1,0,2,2,1,0],   root:5, rootRel:0, name:'Am shape' },
+            { rel:[-1,-1,0,2,3,1],  root:4, rootRel:0, name:'Dm shape' },
+            { rel:[-1,-1,2,0,0,0],  root:4, rootRel:2, name:'compact' },
+        ],
+        '5': [ // power chords
+            { rel:[0,2,2,-1,-1,-1], root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,2,-1,-1], root:5, rootRel:0, name:'root 5' },
+        ],
+        '7': [
+            { rel:[0,2,0,1,0,0],    root:6, rootRel:0, name:'E7 shape' },
+            { rel:[-1,0,2,0,2,0],   root:5, rootRel:0, name:'A7 shape' },
+            { rel:[-1,3,2,3,1,0],   root:5, rootRel:3, name:'C7 shape' },
+            { rel:[-1,-1,0,2,1,2],  root:4, rootRel:0, name:'D7 shape' },
+        ],
+        'm7': [
+            { rel:[0,2,0,0,0,0],    root:6, rootRel:0, name:'Em7 shape' },
+            { rel:[-1,0,2,0,1,0],   root:5, rootRel:0, name:'Am7 shape' },
+            { rel:[-1,-1,0,2,1,1],  root:4, rootRel:0, name:'Dm7 shape' },
+        ],
+        'maj7': [
+            { rel:[0,-1,1,1,0,-1],  root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,1,2,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,3,2,0,0,0],   root:5, rootRel:3, name:'C shape' },
+            { rel:[-1,-1,0,2,2,2],  root:4, rootRel:0, name:'D shape' },
+        ],
+        '6': [
+            { rel:[-1,0,2,2,2,2],   root:5, rootRel:0, name:'barre' },
+            { rel:[0,-1,2,1,2,-1],  root:6, rootRel:0, name:'root 6' },
+        ],
+        'm6': [
+            { rel:[-1,0,2,2,1,2],   root:5, rootRel:0, name:'root 5' },
+            { rel:[0,2,2,0,2,0],    root:6, rootRel:0, name:'root 6' },
+        ],
+        'sus2': [
+            { rel:[-1,0,2,2,0,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,-1,0,2,3,0],  root:4, rootRel:0, name:'D shape' },
+        ],
+        'sus4': [
+            { rel:[0,2,2,2,0,0],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,0,2,2,3,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,-1,0,2,3,3],  root:4, rootRel:0, name:'D shape' },
+        ],
+        '7sus4': [
+            { rel:[0,2,0,2,0,0],    root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,0,3,0],   root:5, rootRel:0, name:'root 5' },
+        ],
+        'add9': [
+            { rel:[0,2,2,1,0,2],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,3,2,0,3,0],   root:5, rootRel:3, name:'C shape' },
+        ],
+        '9':    [ { rel:[-1,1,0,1,1,1],  root:5, rootRel:1, name:'root 5' } ],
+        'm9':   [ { rel:[-1,2,0,2,2,2],  root:5, rootRel:2, name:'root 5' } ],
+        'maj9': [ { rel:[-1,1,0,2,1,-1], root:5, rootRel:1, name:'root 5' } ],
+        '13':   [ { rel:[-1,1,0,1,3,3],  root:5, rootRel:1, name:'root 5' } ],
+        '7#9':  [ { rel:[-1,1,0,1,2,-1], root:5, rootRel:1, name:'root 5' } ],
+        '7b9':  [ { rel:[-1,1,0,1,0,-1], root:5, rootRel:1, name:'root 5' } ],
+        'dim': [
+            { rel:[-1,0,1,2,1,-1],  root:5, rootRel:0, name:'root 5' },
+            { rel:[-1,-1,0,1,3,1],  root:4, rootRel:0, name:'root 4' },
+        ],
+        'dim7': [
+            { rel:[-1,1,2,0,2,-1],  root:5, rootRel:1, name:'root 5' },
+            { rel:[-1,-1,0,1,0,1],  root:4, rootRel:0, name:'root 4' },
+        ],
+        'm7b5': [
+            { rel:[-1,0,1,0,1,-1],  root:5, rootRel:0, name:'root 5' },
+            { rel:[1,-1,1,1,0,-1],  root:6, rootRel:1, name:'root 6' },
+        ],
+        'aug':  [ { rel:[-1,3,2,1,1,0],  root:5, rootRel:3, name:'root 5' } ],
+        'm(maj7)': [
+            { rel:[-1,0,2,1,1,0],   root:5, rootRel:0, name:'root 5' },
+            { rel:[0,2,1,0,0,0],    root:6, rootRel:0, name:'root 6' },
+        ],
+    };
+
+    // dim7 repeats every 3 frets and aug every 4 (symmetric chords),
+    // so the same shape gives extra positions further up the neck.
+    const SYMMETRY = { 'dim7': 3, 'aug': 4 };
+
+    // Classic open fingerings the movable shapes can't produce.
+    const EXTRAS = {
+        'G7':    [{ frets:[3,2,0,0,0,1],    label:'Open' }],
+        'B7':    [{ frets:[-1,2,1,2,0,2],   label:'Open' }],
+        'Gmaj7': [{ frets:[3,2,0,0,0,2],    label:'Open' }],
+        'Fmaj7': [{ frets:[-1,-1,3,2,1,0],  label:'Open' }],
+    };
+
+    // What the user might type → the SHAPES key. Checked exact first, then
+    // lowercased ('Maj7' → 'maj7') so 'M7' (maj7) and 'm7' (minor 7) stay distinct.
+    const QUAL_ALIAS = {
+        '':'', 'maj':'', 'major':'', 'M':'',
+        'm':'m', 'min':'m', 'minor':'m',
+        '5':'5',
+        '7':'7', 'dom7':'7',
+        'm7':'m7', 'min7':'m7',
+        'maj7':'maj7', 'M7':'maj7', 'ma7':'maj7',
+        '6':'6', 'maj6':'6', 'M6':'6',
+        'm6':'m6', 'min6':'m6',
+        '9':'9', 'm9':'m9', 'min9':'m9', 'maj9':'maj9', 'M9':'maj9',
+        'add9':'add9', 'add2':'add9', '2':'add9',
+        'sus':'sus4', 'sus4':'sus4', 'sus2':'sus2',
+        '7sus4':'7sus4', '7sus':'7sus4',
+        'dim':'dim', 'o':'dim', '°':'dim',
+        'dim7':'dim7', 'o7':'dim7', '°7':'dim7',
+        'm7b5':'m7b5', 'min7b5':'m7b5', 'ø':'m7b5', 'ø7':'m7b5',
+        'aug':'aug', '+':'aug', '#5':'aug',
+        '13':'13', '7#9':'7#9', '7b9':'7b9',
+        'mmaj7':'m(maj7)', 'mM7':'m(maj7)', 'minmaj7':'m(maj7)', 'm(maj7)':'m(maj7)',
+    };
+
+    // 'F#m7' → { idx: 6, qual: 'm7', name: 'F#m7' }, or null if unknown.
+    function parse(sym) {
+        const m = sym.match(/^([A-Ga-g])([#b♯♭]?)(.*)$/);
+        if (!m) return null;
+        const root = m[1].toUpperCase() + m[2].replace('♯','#').replace('♭','b');
+        const idx  = NOTE_IDX[root];
+        if (idx === undefined) return null;
+        const q = m[3].trim();
+        let qual = null;
+        if (QUAL_ALIAS.hasOwnProperty(q)) qual = QUAL_ALIAS[q];
+        else if (QUAL_ALIAS.hasOwnProperty(q.toLowerCase())) qual = QUAL_ALIAS[q.toLowerCase()];
+        if (qual === null) return null;
+        return { idx, qual, name: root + qual };
+    }
+
+    // All playable positions for a chord, sorted low → high on the neck.
+    function voicingsFor(idx, qual, name) {
+        const seen = new Set();
+        const out  = [];
+        function add(frets, label, sortKey) {
+            const key = frets.join(',');
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({ frets, label, sortKey });
+        }
+        (EXTRAS[name] || []).forEach(v => add(v.frets, v.label, 0));
+        SHAPES[qual].forEach(sh => {
+            const rootFret = (idx - OPEN_IDX[sh.root] + 12) % 12;
+            let anchor = rootFret - sh.rootRel;
+            if (anchor < 0) anchor += 12;
+            const step = SYMMETRY[qual];
+            for (let a = anchor; ; a += step) {
+                const frets = sh.rel.map(r => r < 0 ? -1 : r + a);
+                if (Math.max(...frets) > MAX_FRET) break;
+                add(frets, a === 0 ? 'Open' : a + 'fr · ' + sh.name, a);
+                if (!step) break;
+            }
+        });
+        out.sort((x, y) => x.sortKey - y.sortKey);
+        return out;
+    }
+
+    function chordSVG(frets, label) {
+        const SX   = [12, 31, 50, 69, 88, 107];
+        const NUT  = 26, FH = 22, NF = 4, DR = 7.5, W = 138, H = 155;
+        const MID  = (SX[0] + SX[5]) / 2;
+        const act  = frets.filter(f => f > 0);
+        const minF = act.length ? Math.min(...act) : 1;
+        const maxF = act.length ? Math.max(...act) : NF;
+        const sf   = maxF > NF ? minF : 1;
+        const pos  = sf > 1;
+        const adj  = frets.map(f => f > 0 ? f - sf + 1 : f);
+        const minA = adj.filter(f => f > 0).reduce((a,b) => Math.min(a,b), 9);
+        const barI = adj.map((f,i) => f === minA ? i : -1).filter(i => i >= 0);
+        const barre = barI.length >= 3 ? { row: minA, from: barI[0], to: barI[barI.length-1] } : null;
+        let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+        SX.forEach((x,i) => {
+            if (frets[i] === -1) s += `<text x="${x}" y="16" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#ff5a5a" font-weight="700">✕</text>`;
+            else if (frets[i] === 0) s += `<circle cx="${x}" cy="13" r="5" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>`;
+        });
+        s += `<line x1="${SX[0]}" y1="${NUT}" x2="${SX[5]}" y2="${NUT}" stroke="${pos?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.85)'}" stroke-width="${pos?1.5:4}" stroke-linecap="round"/>`;
+        if (pos) s += `<text x="${SX[5]+11}" y="${NUT+FH*0.58}" text-anchor="start" font-size="9" font-family="sans-serif" fill="rgba(255,255,255,0.42)">${sf}fr</text>`;
+        SX.forEach(x => s += `<line x1="${x}" y1="${NUT}" x2="${x}" y2="${NUT+NF*FH}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>`);
+        for (let f=1;f<=NF;f++) s += `<line x1="${SX[0]}" y1="${NUT+f*FH}" x2="${SX[5]}" y2="${NUT+f*FH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>`;
+        if (barre) {
+            const by = NUT + (barre.row - 0.5) * FH;
+            s += `<rect x="${SX[barre.from]-DR}" y="${by-DR}" width="${SX[barre.to]-SX[barre.from]+DR*2}" height="${DR*2}" rx="${DR}" fill="#00d4aa"/>`;
+        }
+        adj.forEach((f,i) => {
+            if (f <= 0 || f > NF) return;
+            if (barre && f === barre.row) return;
+            s += `<circle cx="${SX[i]}" cy="${NUT+(f-0.5)*FH}" r="${DR}" fill="#00d4aa"/>`;
+        });
+        s += `<text x="${MID}" y="${NUT+NF*FH+15}" text-anchor="middle" font-size="10" font-family="sans-serif" fill="rgba(255,255,255,0.38)">${label}</text>`;
+        return s + '</svg>';
+    }
+
+    function renderChords(raw) {
+        const out = document.getElementById('chordOutput');
+        if (!out) return;
+        out.innerHTML = '';
+        if (!raw.trim()) return;
+        const names = raw.trim().split(/[\s,\-]+/).map(s => s.split('/')[0].trim()).filter(Boolean);
+        names.forEach((n, idx) => {
+            const p   = parse(n);
+            const vs  = p ? voicingsFor(p.idx, p.qual, p.name) : null;
+            const grp = document.createElement('div');
+            grp.className = 'chord-group';
+            grp.innerHTML = `<div class="chord-group-label">${escHtml(p ? p.name : n)}</div>`;
+            const vwrap = document.createElement('div');
+            vwrap.className = 'chord-voicings';
+            if (!vs || !vs.length) {
+                vwrap.innerHTML = '<div class="chord-not-found">Not in library</div>';
+            } else {
+                vs.forEach(v => {
+                    const card = document.createElement('div');
+                    card.className = 'chord-card';
+                    card.innerHTML = chordSVG(v.frets, v.label);
+                    vwrap.appendChild(card);
+                });
+            }
+            grp.appendChild(vwrap);
+            out.appendChild(grp);
+            setTimeout(() => { grp.style.opacity = '1'; grp.style.transform = 'translateY(0)'; }, idx * 70);
+        });
+    }
+
+    const btn = document.getElementById('chordGenBtn');
+    const inp = document.getElementById('chordInput');
+    if (btn) btn.addEventListener('click', () => renderChords(inp.value));
+    if (inp) inp.addEventListener('keydown', e => e.key === 'Enter' && renderChords(e.target.value));
+}
+</script>
+</body>
+</html>

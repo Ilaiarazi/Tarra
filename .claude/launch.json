@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tarra",
+      "runtimeExecutable": "python3.11",
+      "runtimeArgs": ["-m", "flask", "--app", "src.app", "run", "--debug"],
+      "env": {"PORT": "5001", "FLASK_RUN_PORT": "5001"},
+      "port": 5001,
+      "autoPort": false
+    }
+  ]
+}

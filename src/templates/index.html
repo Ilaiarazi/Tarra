@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>document.documentElement.classList.add('js');</script>
+    <title>Tarra — AI practice coach for guitar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Inter:wght@400;500;600;700&family=Metal+Mania&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --teal: #00d4aa;
+            --teal-dim: rgba(0, 212, 170, 0.3);
+            --bg: #090d11;
+            --ink: #090d11;
+            --surface: rgba(255, 255, 255, 0.04);
+            --text: #eaeef2;
+            --muted: rgba(234, 238, 242, 0.55);
+            --line: rgba(255, 255, 255, 0.08);
+            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+            --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--ink);
+            color: var(--text);
+            font-family: var(--font-body);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        a:focus-visible, button:focus-visible {
+            outline: 2px solid var(--teal);
+            outline-offset: 3px;
+            border-radius: 6px;
+        }
+
+        /* ── Hero entrance (CSS-only; content is visible without JS) ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: none; }
+        }
+        .js .hero-content > * { animation: fadeUp 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+        .js .hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+        .js .hero-content > *:nth-child(2) { animation-delay: 0.16s; }
+        .js .hero-content > *:nth-child(3) { animation-delay: 0.28s; }
+        .js .hero-content > *:nth-child(4) { animation-delay: 0.40s; }
+        .js .hero-content > *:nth-child(5) { animation-delay: 0.50s; }
+
+        /* ── Shared structural bits ── */
+        .eyebrow {
+            font-family: var(--font-body);
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--teal);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+        .eyebrow::before {
+            content: '';
+            width: 26px; height: 1px;
+            background: var(--teal);
+            opacity: 0.55;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(1.8rem, 3.6vw, 2.6rem);
+            letter-spacing: -0.025em;
+            line-height: 1.05;
+            margin-top: 0.9rem;
+        }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            font-family: var(--font-body);
+            display: inline-block;
+            background: var(--teal);
+            color: #04120e;
+            font-weight: 600;
+            font-size: 0.96rem;
+            letter-spacing: 0.01em;
+            padding: 0.85rem 1.6rem;
+            border-radius: 11px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0, 212, 170, 0.22);
+            background: #12e0b6;
+        }
+        .btn-ghost {
+            font-family: var(--font-body);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text);
+            font-weight: 500;
+            font-size: 0.96rem;
+            text-decoration: none;
+            padding: 0.85rem 0.3rem;
+            transition: color 0.2s;
+        }
+        .btn-ghost::after { content: '→'; transition: transform 0.2s; }
+        .btn-ghost:hover { color: var(--teal); }
+        .btn-ghost:hover::after { transform: translateX(3px); }
+
+        /* ── Navbar ── */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.05rem 2rem;
+            background: rgba(9, 13, 17, 0.55);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid transparent;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        nav.scrolled {
+            background: rgba(9, 13, 17, 0.9);
+            border-bottom-color: var(--line);
+        }
+
+        .nav-logo {
+            font-family: 'Metal Mania', cursive;
+            font-size: 1.9rem;
+            background: linear-gradient(180deg, #ffffff 0%, var(--teal) 55%, #007a66 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            letter-spacing: 0.04em;
+            filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.4));
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+
+        /* ── Hamburger menu button (mobile only) ── */
+        .nav-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            width: 44px; height: 44px;
+            padding: 0 10px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .nav-toggle:hover { border-color: var(--teal); }
+        .nav-toggle span {
+            display: block;
+            height: 2px; width: 100%;
+            background: var(--text);
+            border-radius: 2px;
+            transition: transform 0.28s ease, opacity 0.2s ease;
+        }
+        .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .nav-toggle.open span:nth-child(2) { opacity: 0; }
+        .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative;
+            z-index: 1;
+            min-height: 100svh;
+            display: flex;
+            align-items: flex-start;
+            padding: 9.5rem 0 4rem;
+            overflow: hidden;
+        }
+        /* the guitar, resting as a band along the bottom (headstock cropped off) */
+        .hero-media {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: url('/static/img/strat.png') no-repeat;
+            background-position: right -2% bottom 6%;
+            background-size: auto 46vh;
+            opacity: 1;
+        }
+        /* keeps the type legible and softens the headstock at the far right */
+        .hero-scrim {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background:
+                linear-gradient(180deg, var(--ink) 6%, transparent 30%),
+                linear-gradient(90deg, var(--ink) 22%, rgba(9,13,17,0.4) 46%, transparent 60%),
+                linear-gradient(90deg, transparent 64%, rgba(9,13,17,0.82) 95%);
+        }
+        .hero-inner {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        .hero-content { max-width: 600px; }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(2.9rem, 6.2vw, 5.4rem);
+            line-height: 0.98;
+            letter-spacing: -0.038em;
+            color: var(--text);
+            margin: 1.5rem 0 1.5rem;
+        }
+        .hero-title em {
+            font-style: italic;
+            font-weight: 600;
+            color: var(--teal);
+        }
+        .hero-lede {
+            font-size: clamp(1.02rem, 1.5vw, 1.2rem);
+            color: var(--muted);
+            line-height: 1.65;
+            max-width: 480px;
+        }
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.1rem;
+            flex-wrap: wrap;
+            margin-top: 2.2rem;
+        }
+        .hero-meta {
+            margin-top: 1.8rem;
+            font-size: 0.82rem;
+            color: var(--muted);
+            letter-spacing: 0.01em;
+        }
+
+        /* ── How it works ── */
+        .how { padding: 7rem 0; }
+        .section-head {
+            max-width: 1120px;
+            margin: 0 auto 2.6rem;
+            padding: 0 2rem;
+        }
+        .steps-wrap { max-width: 1120px; margin: 0 auto; padding: 0 2rem; }
+        .steps {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--line);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .step {
+            background: var(--ink);
+            padding: 2.4rem 1.9rem 2.6rem;
+            transition: background 0.25s;
+        }
+        .step:hover { background: #0d141b; }
+        .step-n {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--teal);
+            letter-spacing: 0.08em;
+        }
+        .step h3 {
+            font-family: var(--font-display);
+            font-size: 1.18rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin: 1.1rem 0 0.55rem;
+        }
+        .step p {
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.65;
+        }
+
+        /* ── Upload ── */
+        .upload { padding: 5rem 0 8rem; }
+        .upload-wrap { max-width: 720px; margin: 0 auto; padding: 0 2rem; }
+        .dropzone {
+            border: 1.5px dashed rgba(0, 212, 170, 0.28);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.015);
+            padding: 3.6rem 2rem;
+            text-align: center;
+            transition: border-color 0.25s, background 0.25s, transform 0.25s;
+        }
+        .dropzone:hover, .dropzone.drag-over {
+            border-color: var(--teal);
+            background: rgba(0, 212, 170, 0.04);
+        }
+        .dropzone.drag-over { transform: translateY(-3px); }
+        .dz-wave { display: block; margin: 0 auto 1.4rem; opacity: 0.85; }
+        .dropzone h3 {
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 0.4rem;
+        }
+        .dropzone-hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.7rem; }
+        .dz-file { margin-top: 1.1rem; color: var(--teal); font-size: 0.9rem; font-weight: 600; }
+        .dz-error { margin-top: 0.8rem; color: #ff6b6b; font-size: 0.88rem; }
+        .dz-analyse { margin-top: 1.1rem; }
+        .dz-status { margin-top: 0.9rem; color: var(--muted); font-size: 0.9rem; }
+
+        /* ── Results Section (kept; shown after analysis) ── */
+        .results-section {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4rem 2rem 8rem;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid rgba(0,212,170,0.12);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .summary-card .card-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--teal);
+            line-height: 1;
+            margin-bottom: 0.4rem;
+        }
+        .summary-card .card-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .confidence-bar-wrap {
+            background: rgba(255,255,255,0.06);
+            border-radius: 100px;
+            height: 6px;
+            margin: 0.6rem auto 0;
+            width: 80%;
+            overflow: hidden;
+        }
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--teal), #00aaff);
+            transition: width 1s ease;
+        }
+        .notes-table-wrap {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .notes-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .notes-table th {
+            background: rgba(0,212,170,0.08);
+            color: var(--teal);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.9rem 1.2rem;
+            text-align: left;
+        }
+        .notes-table td {
+            padding: 0.7rem 1.2rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            color: var(--text);
+        }
+        .notes-table tr:hover td { background: rgba(0,212,170,0.03); }
+        .conf-pill {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .conf-high   { background: rgba(0,212,170,0.15); color: var(--teal); }
+        .conf-medium { background: rgba(255,200,0,0.12); color: #ffc800; }
+        .conf-low    { background: rgba(255,107,107,0.12); color: #ff6b6b; }
+        .results-section .section-label {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 0.9rem;
+        }
+        .results-section .section-title { text-align: center; margin-bottom: 2.5rem; }
+
+        /* ── Scroll progress bar ── */
+        .scroll-progress {
+            position: fixed;
+            top: 0; left: 0;
+            height: 2px;
+            width: 0%;
+            background: var(--teal);
+            z-index: 200;
+            pointer-events: none;
+            transition: width 0.1s linear;
+        }
+
+        /* ── Footer ── */
+        .site-footer {
+            border-top: 1px solid var(--line);
+            padding: 2.6rem 2rem;
+            text-align: center;
+        }
+        .foot-logo { font-family: 'Metal Mania', cursive; color: var(--teal); font-size: 1.3rem; }
+        .site-footer p { color: var(--muted); font-size: 0.85rem; margin-top: 0.45rem; }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .js .hero-content > * { animation: none; }
+        }
+
+        @media (max-width: 820px) {
+            .steps { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 1rem 1.4rem; }
+            .nav-toggle { display: flex; }
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: calc(100% + 0.5rem);
+                right: 1.4rem;
+                left: 1.4rem;
+                flex-direction: column;
+                gap: 0;
+                background: rgba(11, 16, 22, 0.98);
+                backdrop-filter: blur(22px);
+                -webkit-backdrop-filter: blur(22px);
+                border: 1px solid rgba(0, 212, 170, 0.16);
+                border-radius: 14px;
+                padding: 0.5rem;
+                box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+            }
+            .nav-links.open { display: flex; }
+            .nav-links li { width: 100%; }
+            .nav-links a {
+                display: block;
+                padding: 0.85rem 1rem;
+                border-radius: 9px;
+                font-size: 0.95rem;
+            }
+            .nav-links a:hover { background: rgba(0, 212, 170, 0.08); color: var(--teal); }
+            .hero { padding: 7rem 0 3rem; }
+            .hero-media { background-size: 200%; background-position: center bottom 2%; }
+            .hero-scrim {
+                background:
+                    linear-gradient(180deg, var(--ink) 6%, rgba(9,13,17,0.3) 26%, transparent 46%),
+                    linear-gradient(180deg, transparent 40%, rgba(9,13,17,0.8) 74%, var(--ink) 99%);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <nav>
+        <a class="nav-logo" href="#">Tarra</a>
+        <ul class="nav-links">
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#upload">Try it</a></li>
+            {% if user %}
+                <li><a href="/history">History</a></li>
+                <li><a href="/logout">Log out</a></li>
+            {% else %}
+                <li><a href="/login">Log in</a></li>
+                <li><a href="/signup">Sign up</a></li>
+            {% endif %}
+        </ul>
+        <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-media" aria-hidden="true"></div>
+        <div class="hero-scrim" aria-hidden="true"></div>
+        <div class="hero-inner">
+            <div class="hero-content">
+                <p class="eyebrow">AI guitar coach</p>
+                <h1 class="hero-title">Play it.<br><em>Hear the truth.</em></h1>
+                <p class="hero-lede">Upload a clip of your playing. Tarra listens note by note and tells you what landed, what drifted, and what to work on next.</p>
+                <div class="hero-actions">
+                    <a href="#upload" class="btn-primary">Upload a recording</a>
+                    <a href="#how" class="btn-ghost">See how it works</a>
+                </div>
+                <p class="hero-meta">Audio or video from your phone · no sign-up to try</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="how" id="how">
+        <div class="section-head">
+            <p class="eyebrow">How it works</p>
+            <h2 class="section-title">From clip to coaching in three steps</h2>
+        </div>
+        <div class="steps-wrap">
+            <ol class="steps">
+                <li class="step">
+                    <span class="step-n">01</span>
+                    <h3>Record yourself</h3>
+                    <p>Capture a short clip on your phone — a riff, a scale run, a few bars of a solo.</p>
+                </li>
+                <li class="step">
+                    <span class="step-n">02</span>
+                    <h3>Upload it</h3>
+                    <p>Drop in an audio clip or a video straight from your camera roll. No account needed to try.</p>
+                </li>
+                <li class="step">
+                    <span class="step-n">03</span>
+                    <h3>Get your read</h3>
+                    <p>Tarra maps your pitch and timing, then hands back plain-English notes on what to practise.</p>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="upload" id="upload">
+        <div class="section-head">
+            <p class="eyebrow">Try it</p>
+            <h2 class="section-title">Drop in a recording</h2>
+        </div>
+        <div class="upload-wrap">
+            <div class="dropzone" id="uploadBox">
+                <svg class="dz-wave" width="48" height="26" viewBox="0 0 48 26" fill="none" aria-hidden="true">
+                    <g stroke="var(--teal)" stroke-width="2.6" stroke-linecap="round">
+                        <line x1="3" y1="10" x2="3" y2="16"/>
+                        <line x1="10.5" y1="6" x2="10.5" y2="20"/>
+                        <line x1="18" y1="11" x2="18" y2="15"/>
+                        <line x1="25.5" y1="2" x2="25.5" y2="24"/>
+                        <line x1="33" y1="8" x2="33" y2="18"/>
+                        <line x1="40.5" y1="5" x2="40.5" y2="21"/>
+                        <line x1="45.5" y1="11" x2="45.5" y2="15"/>
+                    </g>
+                </svg>
+                <h3>Drag a file here</h3>
+                <p class="dropzone-hint">Audio or video · up to 200 MB</p>
+
+                <input type="file" id="fileInput"
+                       accept="video/*,audio/*,.mov,.mp4,.m4v,.m4a,.mp3,.wav"
+                       style="display:none">
+
+                <button type="button" class="btn-primary" id="browseBtn"
+                        onclick="document.getElementById('fileInput').click()">
+                    Choose file
+                </button>
+
+                <p id="filenameDisplay" class="dz-file" style="display:none;"></p>
+                <p id="uploadError" class="dz-error" style="display:none;"></p>
+
+                <button type="button" class="btn-primary dz-analyse" id="analyseBtn"
+                        style="display:none;" onclick="uploadFile()">
+                    Analyse my playing
+                </button>
+
+                <p id="uploadStatus" class="dz-status" style="display:none;"></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results section — hidden until analysis completes -->
+    <section class="results-section" id="resultsSection" style="display:none">
+        <p class="section-label">Your Results</p>
+        <h2 class="section-title" id="resultsHeading">Analysis Complete</h2>
+
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <p id="confidenceLabel" style="text-align:center; color:var(--muted);
+           font-size:0.9rem; margin-bottom:2.5rem;"></p>
+
+        <div class="notes-table-wrap">
+            <table class="notes-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Note</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Duration</th>
+                        <th>Confidence</th>
+                        <th>String area</th>
+                    </tr>
+                </thead>
+                <tbody id="notesTableBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <footer class="site-footer">
+        <div class="foot-logo">Tarra</div>
+        <p>AI practice feedback for guitar players.</p>
+    </footer>
+
+    <script>
+        // ── Scroll progress + nav state ───────────────────────────────
+        const progressBar = document.getElementById('scrollProgress');
+        const navEl       = document.querySelector('nav');
+        window.addEventListener('scroll', () => {
+            const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+            progressBar.style.width = pct + '%';
+            navEl.classList.toggle('scrolled', window.scrollY > 40);
+        }, { passive: true });
+
+        // ── Mobile menu toggle ────────────────────────────────────────
+        const navToggle = document.getElementById('navToggle');
+        const navMenu   = document.querySelector('.nav-links');
+
+        function closeMenu() {
+            navMenu.classList.remove('open');
+            navToggle.classList.remove('open');
+            navToggle.setAttribute('aria-expanded', 'false');
+        }
+
+        navToggle.addEventListener('click', e => {
+            e.stopPropagation();
+            const open = navMenu.classList.toggle('open');
+            navToggle.classList.toggle('open', open);
+            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+
+        navMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+        document.addEventListener('click', e => {
+            if (!navMenu.contains(e.target) && !navToggle.contains(e.target)) closeMenu();
+        });
+
+        // ── Upload drag feedback ──────────────────────────────────────
+        const uploadBox = document.getElementById('uploadBox');
+        ['dragenter','dragover'].forEach(ev =>
+            uploadBox.addEventListener(ev, e => { e.preventDefault(); uploadBox.classList.add('drag-over'); }));
+        ['dragleave','drop'].forEach(ev =>
+            uploadBox.addEventListener(ev, () => uploadBox.classList.remove('drag-over')));
+
+        // ── Upload feature ────────────────────────────────────────────
+        const fileInput       = document.getElementById('fileInput');
+        const filenameDisplay = document.getElementById('filenameDisplay');
+        const uploadError     = document.getElementById('uploadError');
+        const analyseBtn      = document.getElementById('analyseBtn');
+        const uploadStatus    = document.getElementById('uploadStatus');
+        const ALLOWED_EXTS  = ['.mp3', '.wav', '.mov', '.mp4', '.m4v', '.m4a', '.aac', '.webm', '.3gp'];
+        const MAX_MB        = 200;
+        const MAX_BYTES     = MAX_MB * 1024 * 1024;
+
+        fileInput.addEventListener('change', function () {
+            uploadError.style.display     = 'none';
+            analyseBtn.style.display      = 'none';
+            filenameDisplay.style.display = 'none';
+            uploadStatus.style.display    = 'none';
+            uploadStatus.style.color      = 'var(--muted)';
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            // Accept a known extension, or anything the browser tags audio/* or
+            // video/* (iPhone camera-roll clips report varied MIME types).
+            const typeOK = ALLOWED_EXTS.includes(ext)
+                || file.type.startsWith('audio/')
+                || file.type.startsWith('video/');
+
+            if (!typeOK) {
+                uploadError.textContent = '⚠️ Please choose an audio file (MP3, WAV) or a video (MOV, MP4).';
+                uploadError.style.display = 'block';
+                fileInput.value = '';
+                return;
+            }
+
+            if (file.size > MAX_BYTES) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                uploadError.textContent = `⚠️ File is ${sizeMB} MB — please keep it under ${MAX_MB} MB.`;
+                uploadError.style.display = 'block';
+                fileInput.value = '';
+                return;
+            }
+
+            filenameDisplay.textContent  = '✅  ' + file.name;
+            filenameDisplay.style.display = 'block';
+            analyseBtn.style.display      = 'block';
+        });
+
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            analyseBtn.disabled      = true;
+            analyseBtn.textContent   = 'Analysing…';
+            uploadStatus.textContent = '⏳ Uploading and analysing… around 25 seconds, a little longer for video. Hang tight.';
+            uploadStatus.style.color   = 'var(--muted)';
+            uploadStatus.style.display = 'block';
+
+            document.getElementById('resultsSection').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body:   formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    uploadStatus.textContent = '🎸  ' + data.message;
+                    uploadStatus.style.color = 'var(--teal)';
+                    analyseBtn.textContent   = '✅ Done!';
+
+                    if (data.notes && data.notes.length > 0) {
+                        sessionStorage.setItem('tarra_results', JSON.stringify(data));
+                        window.location.href = '/results';
+                    }
+                } else {
+                    const msg = data.error || 'Something went wrong.';
+                    uploadError.textContent   = msg;
+                    uploadError.style.display = 'block';
+                    uploadStatus.style.display = 'none';
+                    analyseBtn.disabled    = false;
+                    analyseBtn.textContent = 'Try Again';
+                }
+
+            } catch (err) {
+                uploadError.textContent   = 'Could not reach the server. Please try again.';
+                uploadError.style.display = 'block';
+                uploadStatus.style.display = 'none';
+                analyseBtn.disabled    = false;
+                analyseBtn.textContent = 'Try Again';
+            }
+        }
+
+        // ── Builds and shows the inline results section (legacy path) ──
+        function showResults(data) {
+            const s = data.summary;
+            document.getElementById('resultsHeading').textContent =
+                `${s.total_notes} notes detected in ${data.filename}`;
+
+            const cards = [
+                { value: s.total_notes,          label: 'Notes detected' },
+                { value: s.unique_notes.length,  label: 'Unique pitches' },
+                { value: s.recording_length + 's', label: 'Recording length' },
+                { value: s.avg_confidence + '%', label: 'Avg confidence', bar: s.avg_confidence }
+            ];
+
+            const grid = document.getElementById('summaryGrid');
+            grid.innerHTML = '';
+            cards.forEach(card => {
+                const div = document.createElement('div');
+                div.className = 'summary-card';
+                div.innerHTML = `
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-label">${card.label}</div>
+                    ${card.bar !== undefined ? `
+                        <div class="confidence-bar-wrap">
+                            <div class="confidence-bar-fill" style="width:${card.bar}%"></div>
+                        </div>` : ''}
+                `;
+                grid.appendChild(div);
+            });
+
+            document.getElementById('confidenceLabel').textContent = s.confidence_label;
+
+            const tbody = document.getElementById('notesTableBody');
+            tbody.innerHTML = '';
+            data.notes.forEach((note, i) => {
+                const pillClass = note.confidence >= 70 ? 'conf-high'
+                                : note.confidence >= 40 ? 'conf-medium'
+                                : 'conf-low';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td><strong>${note.note}</strong></td>
+                    <td>${note.start}s</td>
+                    <td>${note.end}s</td>
+                    <td>${note.duration}s</td>
+                    <td><span class="conf-pill ${pillClass}">${note.confidence}%</span></td>
+                    <td>${note.string_area}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ── Drag & drop ───────────────────────────────────────────────
+        uploadBox.addEventListener('drop', e => {
+            e.preventDefault();
+            const dropped = e.dataTransfer.files[0];
+            if (!dropped) return;
+            const dt = new DataTransfer();
+            dt.items.add(dropped);
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
+        });
+    </script>
+</body>
+</html>
