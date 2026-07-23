@@ -1,0 +1,1 @@
+Use Demucs (Meta's stem separator) to isolate the lead guitar from a mixed recording before running Basic Pitch. Would let users upload a recording with a backing track and still get accurate lead guitar detection.

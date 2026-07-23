@@ -40,6 +40,12 @@
         }
         .btn-back { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
         .btn-back:hover { border-color: var(--teal); color: var(--teal); }
+        .nav-actions { display: flex; align-items: center; gap: 1.3rem; }
+        .nav-actions a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; transition: color 0.2s; }
+        .nav-actions a:hover { color: var(--teal); }
+        .nav-actions a.btn-back { color: var(--muted); }
+        .nav-actions a.btn-back:hover { color: var(--teal); }
+        .nav-user { color: var(--teal); font-size: 0.85rem; }
 
         /* ── Page ── */
         .page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
@@ -182,6 +188,35 @@
         .no-data { text-align: center; padding: 5rem 2rem; color: var(--muted); }
         .no-data a { color: var(--teal); text-decoration: none; }
 
+        /* ── Chord Charts ── */
+        .chord-intro { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .chord-input-row { display: flex; gap: 0.75rem; max-width: 620px; margin-bottom: 2rem; }
+        .chord-input {
+            flex: 1;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            color: var(--text); border-radius: 8px; padding: 0.65rem 1rem;
+            font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .chord-input:focus { border-color: var(--teal); }
+        .chord-input::placeholder { color: var(--muted); }
+        .chord-output { display: flex; flex-direction: column; gap: 2.2rem; }
+        .chord-group {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.8rem;
+            opacity: 0; transform: translateY(12px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .chord-group-label { font-size: 1.1rem; font-weight: 800; color: var(--teal); letter-spacing: 0.04em; }
+        .chord-voicings { display: flex; flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
+        .chord-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 0.9rem 0.7rem 0.6rem;
+            display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+            transition: border-color 0.2s;
+        }
+        .chord-card:hover { border-color: rgba(0,212,170,0.28); }
+        .chord-not-found { color: var(--muted); font-size: 0.85rem; font-style: italic; padding: 0.8rem; }
+
         @media (max-width: 640px) {
             nav { padding: 1rem 1.2rem; }
             .page { padding: 1.5rem 1rem 4rem; }
@@ -193,7 +228,16 @@
 
 <nav>
     <a class="nav-logo" href="/">Tarra</a>
-    <a class="btn-back" href="/">Upload another</a>
+    <div class="nav-actions">
+        {% if user %}
+            <span class="nav-user">{{ user.username }}</span>
+            <a href="/history">History</a>
+            <a href="/logout">Log out</a>
+        {% else %}
+            <a href="/login">Log in</a>
+        {% endif %}
+        <a class="btn-back" href="/">Upload another</a>
+    </div>
 </nav>
 
 <div class="page" id="pageContent">
@@ -201,14 +245,24 @@
 </div>
 
 <script>
-const raw = sessionStorage.getItem('tarra_results');
-if (!raw) {
+// Two ways to land here:
+//   1. Fresh analysis — data was stashed in sessionStorage by the upload page.
+//   2. Saved analysis (/analysis/<id>) — Flask injects the row as saved_data.
+// A saved analysis wins when present; otherwise fall back to sessionStorage.
+{% if saved_data %}
+const DATA = {{ saved_data | tojson }};
+{% else %}
+const stored = sessionStorage.getItem('tarra_results');
+const DATA = stored ? JSON.parse(stored) : null;
+{% endif %}
+
+if (!DATA) {
     document.getElementById('pageContent').innerHTML = `
         <div class="no-data">
             <p>No results found. <a href="/">Upload a recording</a> to get started.</p>
         </div>`;
 } else {
-    render(JSON.parse(raw));
+    render(DATA);
 }
 
 function render(data) {
@@ -236,6 +290,7 @@ function render(data) {
             <button class="tab-btn" data-tab="timing">Timing</button>
             <button class="tab-btn" data-tab="solo">Solo Ideas</button>
             <button class="tab-btn" data-tab="scales">Scales</button>
+            <button class="tab-btn" data-tab="chords">Chords</button>
         </div>
 
         <!-- OVERVIEW -->
@@ -304,9 +359,22 @@ function render(data) {
             </div>
             <div id="scaleOutput"></div>
         </div>
+
+        <!-- CHORDS -->
+        <div class="tab-panel" id="tab-chords">
+            <p class="chord-intro">Type a chord progression to see every common way to play each chord, from open position up the neck.</p>
+            <div class="chord-input-row">
+                <input type="text" id="chordInput" class="chord-input"
+                       placeholder="e.g.  Am  F  C  G"
+                       autocomplete="off" spellcheck="false">
+                <button class="btn-generate" id="chordGenBtn">Generate</button>
+            </div>
+            <div class="chord-output" id="chordOutput"></div>
+        </div>
     `;
 
     setupTabs();
+    setupChords();
     buildCards(s);
     buildConfChart(data.notes, s.recording_length);
     buildTimingChart(data.notes, s.recording_length);
@@ -507,6 +575,256 @@ function keyOptions() {
 
 function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Chord Charts ──────────────────────────────────────────────────────────
+function setupChords() {
+    // Note name → semitone index (C = 0 … B = 11).
+    const NOTE_IDX = {
+        'C':0, 'B#':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3, 'E':4, 'Fb':4,
+        'E#':5, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8, 'A':9, 'A#':10,
+        'Bb':10, 'B':11, 'Cb':11,
+    };
+    // Open-string note of each string a shape can be rooted on (6=low E, 5=A, 4=D).
+    const OPEN_IDX = { 6:4, 5:9, 4:2 };
+    const MAX_FRET = 14;
+
+    // Movable shapes per chord type. `rel` frets are relative to the anchor
+    // (lowest fretted) fret, -1 = muted. A shape slides up the neck so its
+    // root lands on the requested note: anchor = root fret − rootRel.
+    // Strings listed low E → high E.
+    const SHAPES = {
+        '': [ // major — the five CAGED forms + a compact top-string form
+            { rel:[0,2,2,1,0,0],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,0,2,2,2,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,3,2,0,1,0],   root:5, rootRel:3, name:'C shape' },
+            { rel:[3,2,0,0,0,3],    root:6, rootRel:3, name:'G shape' },
+            { rel:[-1,-1,0,2,3,2],  root:4, rootRel:0, name:'D shape' },
+            { rel:[-1,-1,2,1,0,0],  root:4, rootRel:2, name:'compact' },
+        ],
+        'm': [
+            { rel:[0,2,2,0,0,0],    root:6, rootRel:0, name:'Em shape' },
+            { rel:[-1,0,2,2,1,0],   root:5, rootRel:0, name:'Am shape' },
+            { rel:[-1,-1,0,2,3,1],  root:4, rootRel:0, name:'Dm shape' },
+            { rel:[-1,-1,2,0,0,0],  root:4, rootRel:2, name:'compact' },
+        ],
+        '5': [ // power chords
+            { rel:[0,2,2,-1,-1,-1], root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,2,-1,-1], root:5, rootRel:0, name:'root 5' },
+        ],
+        '7': [
+            { rel:[0,2,0,1,0,0],    root:6, rootRel:0, name:'E7 shape' },
+            { rel:[-1,0,2,0,2,0],   root:5, rootRel:0, name:'A7 shape' },
+            { rel:[-1,3,2,3,1,0],   root:5, rootRel:3, name:'C7 shape' },
+            { rel:[-1,-1,0,2,1,2],  root:4, rootRel:0, name:'D7 shape' },
+        ],
+        'm7': [
+            { rel:[0,2,0,0,0,0],    root:6, rootRel:0, name:'Em7 shape' },
+            { rel:[-1,0,2,0,1,0],   root:5, rootRel:0, name:'Am7 shape' },
+            { rel:[-1,-1,0,2,1,1],  root:4, rootRel:0, name:'Dm7 shape' },
+        ],
+        'maj7': [
+            { rel:[0,-1,1,1,0,-1],  root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,1,2,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,3,2,0,0,0],   root:5, rootRel:3, name:'C shape' },
+            { rel:[-1,-1,0,2,2,2],  root:4, rootRel:0, name:'D shape' },
+        ],
+        '6': [
+            { rel:[-1,0,2,2,2,2],   root:5, rootRel:0, name:'barre' },
+            { rel:[0,-1,2,1,2,-1],  root:6, rootRel:0, name:'root 6' },
+        ],
+        'm6': [
+            { rel:[-1,0,2,2,1,2],   root:5, rootRel:0, name:'root 5' },
+            { rel:[0,2,2,0,2,0],    root:6, rootRel:0, name:'root 6' },
+        ],
+        'sus2': [
+            { rel:[-1,0,2,2,0,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,-1,0,2,3,0],  root:4, rootRel:0, name:'D shape' },
+        ],
+        'sus4': [
+            { rel:[0,2,2,2,0,0],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,0,2,2,3,0],   root:5, rootRel:0, name:'A shape' },
+            { rel:[-1,-1,0,2,3,3],  root:4, rootRel:0, name:'D shape' },
+        ],
+        '7sus4': [
+            { rel:[0,2,0,2,0,0],    root:6, rootRel:0, name:'root 6' },
+            { rel:[-1,0,2,0,3,0],   root:5, rootRel:0, name:'root 5' },
+        ],
+        'add9': [
+            { rel:[0,2,2,1,0,2],    root:6, rootRel:0, name:'E shape' },
+            { rel:[-1,3,2,0,3,0],   root:5, rootRel:3, name:'C shape' },
+        ],
+        '9':    [ { rel:[-1,1,0,1,1,1],  root:5, rootRel:1, name:'root 5' } ],
+        'm9':   [ { rel:[-1,2,0,2,2,2],  root:5, rootRel:2, name:'root 5' } ],
+        'maj9': [ { rel:[-1,1,0,2,1,-1], root:5, rootRel:1, name:'root 5' } ],
+        '13':   [ { rel:[-1,1,0,1,3,3],  root:5, rootRel:1, name:'root 5' } ],
+        '7#9':  [ { rel:[-1,1,0,1,2,-1], root:5, rootRel:1, name:'root 5' } ],
+        '7b9':  [ { rel:[-1,1,0,1,0,-1], root:5, rootRel:1, name:'root 5' } ],
+        'dim': [
+            { rel:[-1,0,1,2,1,-1],  root:5, rootRel:0, name:'root 5' },
+            { rel:[-1,-1,0,1,3,1],  root:4, rootRel:0, name:'root 4' },
+        ],
+        'dim7': [
+            { rel:[-1,1,2,0,2,-1],  root:5, rootRel:1, name:'root 5' },
+            { rel:[-1,-1,0,1,0,1],  root:4, rootRel:0, name:'root 4' },
+        ],
+        'm7b5': [
+            { rel:[-1,0,1,0,1,-1],  root:5, rootRel:0, name:'root 5' },
+            { rel:[1,-1,1,1,0,-1],  root:6, rootRel:1, name:'root 6' },
+        ],
+        'aug':  [ { rel:[-1,3,2,1,1,0],  root:5, rootRel:3, name:'root 5' } ],
+        'm(maj7)': [
+            { rel:[-1,0,2,1,1,0],   root:5, rootRel:0, name:'root 5' },
+            { rel:[0,2,1,0,0,0],    root:6, rootRel:0, name:'root 6' },
+        ],
+    };
+
+    // dim7 repeats every 3 frets and aug every 4 (symmetric chords),
+    // so the same shape gives extra positions further up the neck.
+    const SYMMETRY = { 'dim7': 3, 'aug': 4 };
+
+    // Classic open fingerings the movable shapes can't produce.
+    const EXTRAS = {
+        'G7':    [{ frets:[3,2,0,0,0,1],    label:'Open' }],
+        'B7':    [{ frets:[-1,2,1,2,0,2],   label:'Open' }],
+        'Gmaj7': [{ frets:[3,2,0,0,0,2],    label:'Open' }],
+        'Fmaj7': [{ frets:[-1,-1,3,2,1,0],  label:'Open' }],
+    };
+
+    // What the user might type → the SHAPES key. Checked exact first, then
+    // lowercased ('Maj7' → 'maj7') so 'M7' (maj7) and 'm7' (minor 7) stay distinct.
+    const QUAL_ALIAS = {
+        '':'', 'maj':'', 'major':'', 'M':'',
+        'm':'m', 'min':'m', 'minor':'m',
+        '5':'5',
+        '7':'7', 'dom7':'7',
+        'm7':'m7', 'min7':'m7',
+        'maj7':'maj7', 'M7':'maj7', 'ma7':'maj7',
+        '6':'6', 'maj6':'6', 'M6':'6',
+        'm6':'m6', 'min6':'m6',
+        '9':'9', 'm9':'m9', 'min9':'m9', 'maj9':'maj9', 'M9':'maj9',
+        'add9':'add9', 'add2':'add9', '2':'add9',
+        'sus':'sus4', 'sus4':'sus4', 'sus2':'sus2',
+        '7sus4':'7sus4', '7sus':'7sus4',
+        'dim':'dim', 'o':'dim', '°':'dim',
+        'dim7':'dim7', 'o7':'dim7', '°7':'dim7',
+        'm7b5':'m7b5', 'min7b5':'m7b5', 'ø':'m7b5', 'ø7':'m7b5',
+        'aug':'aug', '+':'aug', '#5':'aug',
+        '13':'13', '7#9':'7#9', '7b9':'7b9',
+        'mmaj7':'m(maj7)', 'mM7':'m(maj7)', 'minmaj7':'m(maj7)', 'm(maj7)':'m(maj7)',
+    };
+
+    // 'F#m7' → { idx: 6, qual: 'm7', name: 'F#m7' }, or null if unknown.
+    function parse(sym) {
+        const m = sym.match(/^([A-Ga-g])([#b♯♭]?)(.*)$/);
+        if (!m) return null;
+        const root = m[1].toUpperCase() + m[2].replace('♯','#').replace('♭','b');
+        const idx  = NOTE_IDX[root];
+        if (idx === undefined) return null;
+        const q = m[3].trim();
+        let qual = null;
+        if (QUAL_ALIAS.hasOwnProperty(q)) qual = QUAL_ALIAS[q];
+        else if (QUAL_ALIAS.hasOwnProperty(q.toLowerCase())) qual = QUAL_ALIAS[q.toLowerCase()];
+        if (qual === null) return null;
+        return { idx, qual, name: root + qual };
+    }
+
+    // All playable positions for a chord, sorted low → high on the neck.
+    function voicingsFor(idx, qual, name) {
+        const seen = new Set();
+        const out  = [];
+        function add(frets, label, sortKey) {
+            const key = frets.join(',');
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({ frets, label, sortKey });
+        }
+        (EXTRAS[name] || []).forEach(v => add(v.frets, v.label, 0));
+        SHAPES[qual].forEach(sh => {
+            const rootFret = (idx - OPEN_IDX[sh.root] + 12) % 12;
+            let anchor = rootFret - sh.rootRel;
+            if (anchor < 0) anchor += 12;
+            const step = SYMMETRY[qual];
+            for (let a = anchor; ; a += step) {
+                const frets = sh.rel.map(r => r < 0 ? -1 : r + a);
+                if (Math.max(...frets) > MAX_FRET) break;
+                add(frets, a === 0 ? 'Open' : a + 'fr · ' + sh.name, a);
+                if (!step) break;
+            }
+        });
+        out.sort((x, y) => x.sortKey - y.sortKey);
+        return out;
+    }
+
+    function chordSVG(frets, label) {
+        const SX   = [12, 31, 50, 69, 88, 107];
+        const NUT  = 26, FH = 22, NF = 4, DR = 7.5, W = 138, H = 155;
+        const MID  = (SX[0] + SX[5]) / 2;
+        const act  = frets.filter(f => f > 0);
+        const minF = act.length ? Math.min(...act) : 1;
+        const maxF = act.length ? Math.max(...act) : NF;
+        const sf   = maxF > NF ? minF : 1;
+        const pos  = sf > 1;
+        const adj  = frets.map(f => f > 0 ? f - sf + 1 : f);
+        const minA = adj.filter(f => f > 0).reduce((a,b) => Math.min(a,b), 9);
+        const barI = adj.map((f,i) => f === minA ? i : -1).filter(i => i >= 0);
+        const barre = barI.length >= 3 ? { row: minA, from: barI[0], to: barI[barI.length-1] } : null;
+        let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+        SX.forEach((x,i) => {
+            if (frets[i] === -1) s += `<text x="${x}" y="16" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#ff5a5a" font-weight="700">✕</text>`;
+            else if (frets[i] === 0) s += `<circle cx="${x}" cy="13" r="5" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>`;
+        });
+        s += `<line x1="${SX[0]}" y1="${NUT}" x2="${SX[5]}" y2="${NUT}" stroke="${pos?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.85)'}" stroke-width="${pos?1.5:4}" stroke-linecap="round"/>`;
+        if (pos) s += `<text x="${SX[5]+11}" y="${NUT+FH*0.58}" text-anchor="start" font-size="9" font-family="sans-serif" fill="rgba(255,255,255,0.42)">${sf}fr</text>`;
+        SX.forEach(x => s += `<line x1="${x}" y1="${NUT}" x2="${x}" y2="${NUT+NF*FH}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>`);
+        for (let f=1;f<=NF;f++) s += `<line x1="${SX[0]}" y1="${NUT+f*FH}" x2="${SX[5]}" y2="${NUT+f*FH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>`;
+        if (barre) {
+            const by = NUT + (barre.row - 0.5) * FH;
+            s += `<rect x="${SX[barre.from]-DR}" y="${by-DR}" width="${SX[barre.to]-SX[barre.from]+DR*2}" height="${DR*2}" rx="${DR}" fill="#00d4aa"/>`;
+        }
+        adj.forEach((f,i) => {
+            if (f <= 0 || f > NF) return;
+            if (barre && f === barre.row) return;
+            s += `<circle cx="${SX[i]}" cy="${NUT+(f-0.5)*FH}" r="${DR}" fill="#00d4aa"/>`;
+        });
+        s += `<text x="${MID}" y="${NUT+NF*FH+15}" text-anchor="middle" font-size="10" font-family="sans-serif" fill="rgba(255,255,255,0.38)">${label}</text>`;
+        return s + '</svg>';
+    }
+
+    function renderChords(raw) {
+        const out = document.getElementById('chordOutput');
+        if (!out) return;
+        out.innerHTML = '';
+        if (!raw.trim()) return;
+        const names = raw.trim().split(/[\s,\-]+/).map(s => s.split('/')[0].trim()).filter(Boolean);
+        names.forEach((n, idx) => {
+            const p   = parse(n);
+            const vs  = p ? voicingsFor(p.idx, p.qual, p.name) : null;
+            const grp = document.createElement('div');
+            grp.className = 'chord-group';
+            grp.innerHTML = `<div class="chord-group-label">${escHtml(p ? p.name : n)}</div>`;
+            const vwrap = document.createElement('div');
+            vwrap.className = 'chord-voicings';
+            if (!vs || !vs.length) {
+                vwrap.innerHTML = '<div class="chord-not-found">Not in library</div>';
+            } else {
+                vs.forEach(v => {
+                    const card = document.createElement('div');
+                    card.className = 'chord-card';
+                    card.innerHTML = chordSVG(v.frets, v.label);
+                    vwrap.appendChild(card);
+                });
+            }
+            grp.appendChild(vwrap);
+            out.appendChild(grp);
+            setTimeout(() => { grp.style.opacity = '1'; grp.style.transform = 'translateY(0)'; }, idx * 70);
+        });
+    }
+
+    const btn = document.getElementById('chordGenBtn');
+    const inp = document.getElementById('chordInput');
+    if (btn) btn.addEventListener('click', () => renderChords(inp.value));
+    if (inp) inp.addEventListener('keydown', e => e.key === 'Enter' && renderChords(e.target.value));
 }
 </script>
 </body>

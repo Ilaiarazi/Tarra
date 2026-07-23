@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarra — Your history</title>
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --teal: #00d4aa;
+            --bg: #080c10;
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.07);
+            --text: #e8eaf6;
+            --muted: rgba(232,234,246,0.55);
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+        /* ── Nav ── */
+        nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 2.5rem; background: rgba(8,12,16,0.85);
+            border-bottom: 1px solid rgba(0,212,170,0.08);
+        }
+        .nav-logo {
+            font-family: 'Metal Mania', cursive; font-size: 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, var(--teal) 50%, #007a66 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; text-decoration: none; letter-spacing: 0.05em;
+            filter: drop-shadow(0 0 8px rgba(0,212,170,0.5));
+        }
+        .nav-actions { display: flex; align-items: center; gap: 1.4rem; }
+        .nav-actions a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; transition: color 0.2s; }
+        .nav-actions a:hover { color: var(--teal); }
+        .nav-user { color: var(--teal); font-size: 0.85rem; }
+        .btn-back { border: 1px solid var(--border); padding: 0.5rem 1.2rem; border-radius: 100px; }
+        .btn-back:hover { border-color: var(--teal); }
+
+        /* ── Page ── */
+        .page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
+        .page-title { font-size: clamp(1.9rem, 4vw, 2.8rem); font-weight: 900; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+        .page-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 2.5rem; }
+
+        /* ── Analysis cards ── */
+        .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.1rem; }
+        .history-card {
+            display: block; text-decoration: none; color: inherit;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.4rem 1.5rem;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .history-card:hover { border-color: rgba(0,212,170,0.35); transform: translateY(-3px); }
+        .hc-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 1rem; }
+        .hc-file {
+            font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--text);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .hc-arrow { color: var(--teal); font-size: 1.1rem; flex-shrink: 0; }
+        .hc-stats { display: flex; gap: 1.6rem; margin-bottom: 0.9rem; }
+        .hc-stat-val { font-size: 1.5rem; font-weight: 900; color: var(--teal); line-height: 1; }
+        .hc-stat-label { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.25rem; }
+        .hc-date { font-size: 0.78rem; color: var(--muted); }
+
+        /* ── Empty state ── */
+        .empty {
+            text-align: center; padding: 5rem 2rem;
+            border: 1px dashed var(--border); border-radius: 20px;
+        }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.6rem; }
+        .empty p { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.8rem; }
+        .btn-primary {
+            display: inline-block; background: var(--teal); color: #080c10;
+            text-decoration: none; padding: 0.8rem 2rem; border-radius: 100px;
+            font-weight: 700; font-size: 0.95rem; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(0,212,170,0.4); }
+
+        @media (max-width: 640px) {
+            nav { padding: 1rem 1.2rem; }
+            .nav-actions { gap: 0.9rem; }
+            .nav-user { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a class="nav-logo" href="/">Tarra</a>
+    <div class="nav-actions">
+        {% if user %}<span class="nav-user">{{ user.username }}</span>{% endif %}
+        <a href="/logout">Log out</a>
+        <a class="btn-back" href="/#upload">New analysis</a>
+    </div>
+</nav>
+
+<div class="page">
+    <h1 class="page-title">Your history</h1>
+    <p class="page-sub">Every analysis you've run, saved to your account.</p>
+
+    {% if analyses %}
+        <div class="history-grid">
+            {% for a in analyses %}
+                <a class="history-card" href="/analysis/{{ a.id }}">
+                    <div class="hc-top">
+                        <span class="hc-file">{{ a.filename }}</span>
+                        <span class="hc-arrow">→</span>
+                    </div>
+                    <div class="hc-stats">
+                        <div>
+                            <div class="hc-stat-val">{{ a.summary.total_notes }}</div>
+                            <div class="hc-stat-label">Notes</div>
+                        </div>
+                        <div>
+                            <div class="hc-stat-val">{{ a.summary.avg_confidence }}%</div>
+                            <div class="hc-stat-label">Accuracy</div>
+                        </div>
+                        <div>
+                            <div class="hc-stat-val">{{ a.summary.recording_length }}s</div>
+                            <div class="hc-stat-label">Length</div>
+                        </div>
+                    </div>
+                    <div class="hc-date">{{ a.created_at }}</div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <div class="empty-icon">🎸</div>
+            <h2>No analyses yet</h2>
+            <p>Upload a recording and it'll show up here automatically.</p>
+            <a class="btn-primary" href="/#upload">Upload a recording</a>
+        </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

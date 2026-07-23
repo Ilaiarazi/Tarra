@@ -26,5 +26,5 @@ Open http://127.0.0.1:5001
 ## Domain notes
 
 - **Basic Pitch** is Spotify's open-source library that turns audio into MIDI notes. It's the core of Tarra's note detection. Accuracy on guitar hasn't been fully tested yet.
-- The app currently accepts MP3 and WAV only — no video yet.
+- The app accepts audio (MP3, WAV) and video (MOV, MP4, M4A, etc.). For video, the audio track is extracted to a temp WAV with ffmpeg — bundled via the `imageio-ffmpeg` package, so no system ffmpeg install is needed — before Basic Pitch runs. See `extract_audio()` in `src/app.py`. Upload limit is 200 MB.
 - Note names like "E4" (MIDI pitch notation) are considered confusing for non-musicians — prefer plain language in the UI where possible.
